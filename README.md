@@ -20,6 +20,8 @@ The build is triggered with:
 $ grumble app
 ```
 
+The run section is called in a shell (sh) process. All sh expressions (`if`, `elif`, ...) are valid.
+
 ## Dependencies
 
 For each target multiple outputs can be defined. These outputs can be used as dependencies
