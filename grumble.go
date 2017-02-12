@@ -74,6 +74,14 @@ func main() {
 		return
 	}
 
+	// Check if the passed targets are valid.
+	for _, t := range ctx.Targets {
+		tt := spec.Targets[t]
+		if tt == nil {
+			fatalErr(fmt.Errorf("target does not exists: %s", t))
+		}
+	}
+
 	// Run the targets.
 	err = ctx.RunTargets(spec)
 	if err != nil {
