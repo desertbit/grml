@@ -33,6 +33,7 @@ func printHelp() {
 	fmt.Println("\nFLAGS:")
 	fmt.Println("  -d | --directory   set an alternative base directory path")
 	fmt.Println("  -l | --list        print a list of all defined targets")
+	fmt.Println("  -v | --verbose     enable verbose execution mode")
 	fmt.Println("  -h | --help        print this help text")
 	fmt.Println("  --no-color         disable color output")
 	fmt.Println("")
@@ -75,6 +76,8 @@ func parseArgs(ctx *context.Context) (err error) {
 			if err != nil {
 				return
 			}
+		case "-v", "--verbose":
+			ctx.Verbose = true
 		case "--no-color":
 			color.NoColor = true
 		default:

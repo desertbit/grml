@@ -46,6 +46,9 @@ type Context struct {
 	// OnlyPrintAllTargets should print all available targets defined in the spec and exit.
 	OnlyPrintAllTargets bool
 
+	// Enable verbose execution mode.
+	Verbose bool
+
 	// PrintTarget is called during each target run.
 	PrintTarget func(t string)
 
@@ -177,7 +180,15 @@ func (c *Context) targetRunRequired(t *spec.Target) (bool, error) {
 
 // run a command string in the build context.
 func (c *Context) run(cmdStr string) error {
-	cmd := exec.Command("sh", "-c", cmdStr)
+	// Prepend the shell attribute to exit immediately on error.
+	attr := "set -e\n"
+
+	// Enable verbose mode if set.
+	if c.Verbose {
+		attr += "set -x\n"
+	}
+
+	cmd := exec.Command("sh", "-c", attr+cmdStr)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
