@@ -59,9 +59,24 @@ func (t *Target) DepTargets() (deps []*Target, err error) {
 //### Target - Private ###//
 //########################//
 
-func (t *Target) init(name string, spec *Spec) {
+func (t *Target) init(name string, spec *Spec) error {
 	t.name = name
 	t.spec = spec
+
+	// Validate.
+	if len(t.Run) == 0 {
+		return fmt.Errorf("no run value specified")
+	}
+	for _, d := range t.Deps {
+		if len(d) == 0 {
+			return fmt.Errorf("empty dependency value")
+		}
+	}
+	for _, o := range t.Outputs {
+		if len(o) == 0 {
+			return fmt.Errorf("empty output value")
+		}
+	}
 
 	// Evaluate the environment variables and clean the paths.
 	for i := 0; i < len(t.Deps); i++ {
@@ -70,4 +85,6 @@ func (t *Target) init(name string, spec *Spec) {
 	for i := 0; i < len(t.Outputs); i++ {
 		t.Outputs[i] = filepath.Clean(t.spec.evaluateVars(t.Outputs[i]))
 	}
+
+	return nil
 }

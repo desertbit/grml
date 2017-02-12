@@ -97,7 +97,11 @@ func ParseSpec(path string) (s *Spec, err error) {
 
 	// Initialize the private target values.
 	for name, t := range s.Targets {
-		t.init(name, s)
+		err = t.init(name, s)
+		if err != nil {
+			err = fmt.Errorf("target '%s': %v", name, err)
+			return
+		}
 	}
 
 	return
