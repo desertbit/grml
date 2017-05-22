@@ -87,8 +87,15 @@ GroupLoop:
 			fmt.Printf("\n%s:\n\n", g)
 		}
 
+		var names []string
+		for name := range s.Targets {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
 		var output []string
-		for name, t := range s.Targets {
+		for _, name := range names {
+			t := s.Targets[name]
 			if t.HelpGroup == g {
 				output = append(output, fmt.Sprintf("%s | %s", name, t.Help))
 			}
