@@ -21,6 +21,7 @@ package spec
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	yaml "gopkg.in/yaml.v2"
@@ -65,9 +66,11 @@ func (s Spec) DefaultTarget() *Target {
 //######################//
 
 func (s *Spec) evaluateVars(str string, env map[string]string) string {
-	for key, value := range env {
-		key = fmt.Sprintf("${%s}", key)
-		str = strings.Replace(str, key, value, -1)
+	if env != nil {
+		for key, value := range env {
+			key = fmt.Sprintf("${%s}", key)
+			str = strings.Replace(str, key, value, -1)
+		}
 	}
 
 	for key, value := range s.Env {
@@ -80,9 +83,10 @@ func (s *Spec) evaluateVars(str string, env map[string]string) string {
 
 // targetWithOutput returns the target which creates the given output.
 func (s Spec) targetWithOutput(o string) *Target {
+	o = filepath.Clean(o)
 	for _, t := range s.Targets {
 		for _, to := range t.Outputs {
-			if to == o {
+			if filepath.Clean(to) == o {
 				return t
 			}
 		}
