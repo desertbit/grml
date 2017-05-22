@@ -82,9 +82,11 @@ func main() {
 	ctx.Env = append(ctx.Env, spec.EnvToSlice()...)
 
 	// Set the default target if no targets were passed.
-	dt := spec.DefaultTarget()
-	if dt != nil {
-		ctx.Targets = append(ctx.Targets, dt.Name())
+	if len(ctx.Targets) == 0 {
+		dt := spec.DefaultTarget()
+		if dt != nil {
+			ctx.Targets = append(ctx.Targets, dt.Name())
+		}
 	}
 
 	// Print all targets if required.
