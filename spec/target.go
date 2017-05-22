@@ -29,11 +29,13 @@ import (
 
 // Target defines a build target.
 type Target struct {
-	Help    string
-	Run     string
-	Default bool
-	Deps    []string
-	Outputs []string `yaml:"output"`
+	Help      string
+	HelpGroup string `yaml:"help-group"`
+	Run       string
+	Default   bool
+	PreRun    []string
+	Deps      []string
+	Outputs   []string `yaml:"output"`
 
 	name string
 	spec *Spec
@@ -72,6 +74,11 @@ func (t *Target) init(name string, spec *Spec) error {
 	for _, o := range t.Outputs {
 		if len(o) == 0 {
 			return fmt.Errorf("empty output value")
+		}
+	}
+	for _, r := range t.PreRun {
+		if len(r) == 0 {
+			return fmt.Errorf("empty prerun value")
 		}
 	}
 

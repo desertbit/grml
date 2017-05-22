@@ -32,6 +32,7 @@ import (
 
 // Spec defines a grumble build file.
 type Spec struct {
+	//Options map[string]interface{} TODO
 	Env     map[string]string
 	Targets map[string]*Target
 }

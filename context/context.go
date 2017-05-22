@@ -79,13 +79,27 @@ func (c *Context) RunTargets(s *spec.Spec) error {
 	}
 
 	// Sort the targets and run them.
-	for _, t := range c.Targets {
-		if !graph.ContainsNode(t) {
-			return fmt.Errorf("target does not exists: %s", t)
+	for _, tn := range c.Targets {
+		t := s.Targets[tn]
+		if t == nil || !graph.ContainsNode(tn) {
+			return fmt.Errorf("target does not exists: %s", tn)
+		}
+
+		// Run the prerun targets.
+		for _, prt := range t.PreRun {
+			tt := s.Targets[prt]
+			if tt == nil {
+				return fmt.Errorf("prerun target does not exists: %s", prt)
+			}
+
+			err := c.runTarget(tt)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Do the topological sort for each specified build target.
-		sorted, err := graph.TopSort(t)
+		sorted, err := graph.TopSort(tn)
 		if err != nil {
 			return err
 		}

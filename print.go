@@ -21,6 +21,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/desertbit/columnize"
 	"github.com/desertbit/grml/spec"
@@ -61,11 +62,37 @@ func printTargets(s *spec.Spec) {
 		return
 	}
 
-	fmt.Print("available targets:\n\n")
-
-	var output []string
-	for name, t := range s.Targets {
-		output = append(output, fmt.Sprintf("%s | %s", name, t.Help))
+	// Obtain all groups.
+	var groups []string
+GroupLoop:
+	for _, t := range s.Targets {
+		for _, g := range groups {
+			if g == t.HelpGroup {
+				continue GroupLoop
+			}
+		}
+		groups = append(groups, t.HelpGroup)
 	}
-	fmt.Printf("%s\n\n", columnize.SimpleFormat(output))
+
+	sort.Strings(groups)
+
+	config := columnize.DefaultConfig()
+	config.Delim = "|"
+	config.Glue = "    "
+
+	for _, g := range groups {
+		if len(g) == 0 {
+			fmt.Println()
+		} else {
+			fmt.Printf("\n%s:\n\n", g)
+		}
+
+		var output []string
+		for name, t := range s.Targets {
+			if t.HelpGroup == g {
+				output = append(output, fmt.Sprintf("%s | %s", name, t.Help))
+			}
+		}
+		fmt.Printf("%s\n\n", columnize.Format(output, config))
+	}
 }
