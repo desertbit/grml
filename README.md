@@ -30,7 +30,8 @@ for other build targets. Targets are skipped if no build is required.
 ```yaml
 targets:
     app:
-        help: build the app
+        help:    build the app
+        default: true
         deps:
             - build/resources
         run: |
@@ -55,7 +56,8 @@ env:
 
 targets:
     app:
-        help: build the app
+        help:    build the app
+        default: true
         run: |
             echo "$version"
 ```
@@ -96,7 +98,8 @@ env:
 
 targets:
     app:
-        help: build the app
+        help:    build the app
+        default: true
         deps:
             - ${buildDir}/resources
             - ${buildDir}/db
