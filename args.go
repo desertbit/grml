@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/desertbit/grumble/context"
+	"github.com/desertbit/grml/context"
 
 	"github.com/fatih/color"
 )

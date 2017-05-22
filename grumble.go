@@ -22,13 +22,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/desertbit/grumble/context"
-	"github.com/desertbit/grumble/spec"
+	"github.com/desertbit/grml/context"
+	"github.com/desertbit/grml/spec"
 )
 
 const (
-	specFilename = "GRUMBLE"
+	specFilename = "grml.yaml"
 )
 
 func main() {
@@ -58,15 +59,33 @@ func main() {
 		fatalErr(err)
 	}
 
+	// Set the PWD environment variable.
+	ctx.Env = append(ctx.Env, "PWD="+ctx.BasePath)
+
+	// Transform the context environment variables to a map.
+	ctxEnv := make(map[string]string)
+	for _, e := range ctx.Env {
+		p := strings.Index(e, "=")
+		if p > 0 {
+			ctxEnv[e[0:p]] = e[p+1:]
+		}
+	}
+
 	// Read the specification file.
 	specPath := filepath.Join(ctx.BasePath, specFilename)
-	spec, err := spec.ParseSpec(specPath)
+	spec, err := spec.ParseSpec(specPath, ctxEnv)
 	if err != nil {
 		fatalErr(fmt.Errorf("spec file: %v", err))
 	}
 
 	// Merge the environment variables.
 	ctx.Env = append(ctx.Env, spec.EnvToSlice()...)
+
+	// Set the default target if no targets were passed.
+	dt := spec.DefaultTarget()
+	if dt != nil {
+		ctx.Targets = append(ctx.Targets, dt.Name())
+	}
 
 	// Print all targets if required.
 	if ctx.OnlyPrintAllTargets || len(ctx.Targets) == 0 {

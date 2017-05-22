@@ -24,7 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/desertbit/grumble/spec"
+	"github.com/desertbit/grml/spec"
 	"github.com/desertbit/topsort"
 )
 
@@ -123,7 +123,7 @@ func (c *Context) runTarget(t *spec.Target) error {
 		c.PrintTarget(t.Name())
 	}
 
-	// Go!
+	// Go.
 	err = c.run(t.Run)
 	if err != nil {
 		return err
@@ -180,6 +180,10 @@ func (c *Context) targetRunRequired(t *spec.Target) (bool, error) {
 
 // run a command string in the build context.
 func (c *Context) run(cmdStr string) error {
+	if len(cmdStr) == 0 {
+		return nil
+	}
+
 	// Prepend the shell attribute to exit immediately on error.
 	attr := "set -e\n"
 

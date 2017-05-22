@@ -48,11 +48,27 @@ func (s Spec) EnvToSlice() (env []string) {
 	return
 }
 
+// DefaultTarget returns the default run target if specified.
+// Otherwise nil is returned.
+func (s Spec) DefaultTarget() *Target {
+	for _, t := range s.Targets {
+		if t.Default {
+			return t
+		}
+	}
+	return nil
+}
+
 //######################//
 //### Spec - Private ###//
 //######################//
 
-func (s *Spec) evaluateVars(str string) string {
+func (s *Spec) evaluateVars(str string, env map[string]string) string {
+	for key, value := range env {
+		key = fmt.Sprintf("${%s}", key)
+		str = strings.Replace(str, key, value, -1)
+	}
+
 	for key, value := range s.Env {
 		key = fmt.Sprintf("${%s}", key)
 		str = strings.Replace(str, key, value, -1)
@@ -78,7 +94,7 @@ func (s Spec) targetWithOutput(o string) *Target {
 //##############//
 
 // ParseSpec parses a grumble build file.
-func ParseSpec(path string) (s *Spec, err error) {
+func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return
@@ -92,7 +108,7 @@ func ParseSpec(path string) (s *Spec, err error) {
 
 	// Evaluate the environment variables.
 	for key, value := range s.Env {
-		s.Env[key] = s.evaluateVars(value)
+		s.Env[key] = s.evaluateVars(value, env)
 	}
 
 	// Initialize the private target values.

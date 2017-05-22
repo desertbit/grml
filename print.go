@@ -22,7 +22,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/desertbit/grumble/spec"
+	"github.com/desertbit/columnize"
+	"github.com/desertbit/grml/spec"
 
 	"github.com/fatih/color"
 )
@@ -61,8 +62,10 @@ func printTargets(s *spec.Spec) {
 	}
 
 	fmt.Print("available targets:\n\n")
+
+	var output []string
 	for name, t := range s.Targets {
-		fmt.Printf("%s \t\t\t%s\n", name, t.Help)
+		output = append(output, fmt.Sprintf("%s | %s", name, t.Help))
 	}
-	fmt.Print("\n")
+	fmt.Printf("%s\n\n", columnize.SimpleFormat(output))
 }

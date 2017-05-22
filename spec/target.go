@@ -31,6 +31,7 @@ import (
 type Target struct {
 	Help    string
 	Run     string
+	Default bool
 	Deps    []string
 	Outputs []string `yaml:"output"`
 
@@ -63,10 +64,6 @@ func (t *Target) init(name string, spec *Spec) error {
 	t.name = name
 	t.spec = spec
 
-	// Validate.
-	if len(t.Run) == 0 {
-		return fmt.Errorf("no run value specified")
-	}
 	for _, d := range t.Deps {
 		if len(d) == 0 {
 			return fmt.Errorf("empty dependency value")
@@ -80,10 +77,10 @@ func (t *Target) init(name string, spec *Spec) error {
 
 	// Evaluate the environment variables and clean the paths.
 	for i := 0; i < len(t.Deps); i++ {
-		t.Deps[i] = filepath.Clean(t.spec.evaluateVars(t.Deps[i]))
+		t.Deps[i] = filepath.Clean(t.spec.evaluateVars(t.Deps[i], nil))
 	}
 	for i := 0; i < len(t.Outputs); i++ {
-		t.Outputs[i] = filepath.Clean(t.spec.evaluateVars(t.Outputs[i]))
+		t.Outputs[i] = filepath.Clean(t.spec.evaluateVars(t.Outputs[i], nil))
 	}
 
 	return nil
