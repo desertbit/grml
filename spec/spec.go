@@ -1,6 +1,6 @@
 /*
- *  Grumble - A simple build automation tool written in Go
- *  Copyright (C) 2016  Roland Singer <roland.singer[at]desertbit.com>
+ *  grml - A simple build automation tool written in Go
+ *  Copyright (C) 2017  Roland Singer <roland.singer[at]desertbit.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ package spec
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"strings"
 
 	yaml "gopkg.in/yaml.v2"
@@ -31,15 +30,16 @@ import (
 //### Spec ###//
 //############//
 
-// Spec defines a grumble build file.
+// Spec defines a grml build file.
 type Spec struct {
 	//Options map[string]interface{} TODO
-	Env     map[string]string
-	Targets map[string]*Target
+	Env     map[string]string  `yaml:"-"`
+	EnvMap  yaml.MapSlice      `yaml:"env"`
+	Targets map[string]*Target `yaml:"targets"`
 }
 
-// EnvToSlice maps the environment variables to an os.exec Env slice.
-func (s Spec) EnvToSlice() (env []string) {
+// ExecEnv returns the execute process environment variables.
+func (s Spec) ExecEnv() (env []string) {
 	env = make([]string, len(s.Env))
 	i := 0
 
@@ -65,41 +65,22 @@ func (s Spec) DefaultTarget() *Target {
 //### Spec - Private ###//
 //######################//
 
-func (s *Spec) evaluateVars(str string, env map[string]string) string {
-	if env != nil {
-		for key, value := range env {
-			key = fmt.Sprintf("${%s}", key)
-			str = strings.Replace(str, key, value, -1)
-		}
-	}
-
+func (s *Spec) evaluateVars(str string) string {
 	for key, value := range s.Env {
 		key = fmt.Sprintf("${%s}", key)
 		str = strings.Replace(str, key, value, -1)
 	}
-
 	return str
-}
-
-// targetWithOutput returns the target which creates the given output.
-func (s Spec) targetWithOutput(o string) *Target {
-	o = filepath.Clean(o)
-	for _, t := range s.Targets {
-		for _, to := range t.Outputs {
-			if filepath.Clean(to) == o {
-				return t
-			}
-		}
-	}
-	return nil
 }
 
 //##############//
 //### Public ###//
 //##############//
 
-// ParseSpec parses a grumble build file.
+// ParseSpec parses a grml build file.
+// Pass a preset environment map, which will be added to the final spec's environment.
 func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
+	// Parse the spec.
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return
@@ -111,9 +92,27 @@ func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
 		return
 	}
 
-	// Evaluate the environment variables.
-	for key, value := range s.Env {
-		s.Env[key] = s.evaluateVars(value, env)
+	// Prepare and evaluate the environment variables.
+	s.Env = make(map[string]string)
+	for _, i := range s.EnvMap {
+		key := fmt.Sprintf("%v", i.Key)
+		value := fmt.Sprintf("%v", i.Value)
+
+		for k, v := range s.Env {
+			value = strings.Replace(value, fmt.Sprintf("${%s}", k), v, -1)
+		}
+		for k, v := range env {
+			value = strings.Replace(value, fmt.Sprintf("${%s}", k), v, -1)
+		}
+
+		s.Env[key] = value
+	}
+
+	// Merge the environments.
+	for k, v := range env {
+		if _, ok := s.Env[k]; !ok {
+			s.Env[k] = v
+		}
 	}
 
 	// Initialize the private target values.

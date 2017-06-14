@@ -1,6 +1,6 @@
 /*
- *  Grumble - A simple build automation tool written in Go
- *  Copyright (C) 2016  Roland Singer <roland.singer[at]desertbit.com>
+ *  grml - A simple build automation tool written in Go
+ *  Copyright (C) 2017  Roland Singer <roland.singer[at]desertbit.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,12 +29,11 @@ import (
 
 // Target defines a build target.
 type Target struct {
-	Help      string
-	HelpGroup string `yaml:"help-group"`
-	Run       string
-	Default   bool
-	PreRun    []string
-	Deps      []string
+	Help      string   `yaml:"help"`
+	HelpGroup string   `yaml:"help-group"`
+	Run       string   `yaml:"run"`
+	Default   bool     `yaml:"default"`
+	Deps      []string `yaml:"deps"`
 	Outputs   []string `yaml:"output"`
 
 	name string
@@ -46,16 +45,9 @@ func (t *Target) Name() string {
 	return t.name
 }
 
-// DepTargets returns a slice of dependency targets.
-func (t *Target) DepTargets() (deps []*Target, err error) {
-	for _, d := range t.Deps {
-		to := t.spec.targetWithOutput(d)
-		if to == nil {
-			return nil, fmt.Errorf("no target found for dependency: %s", d)
-		}
-		deps = append(deps, to)
-	}
-	return
+// Spec returns the target's spec.
+func (t *Target) Spec() *Spec {
+	return t.spec
 }
 
 //########################//
@@ -76,18 +68,13 @@ func (t *Target) init(name string, spec *Spec) error {
 			return fmt.Errorf("empty output value")
 		}
 	}
-	for _, r := range t.PreRun {
-		if len(r) == 0 {
-			return fmt.Errorf("empty prerun value")
-		}
-	}
 
-	// Evaluate the environment variables and clean the paths.
+	// Evaluate the variables.
 	for i := 0; i < len(t.Deps); i++ {
-		t.Deps[i] = filepath.Clean(t.spec.evaluateVars(t.Deps[i], nil))
+		t.Deps[i] = t.spec.evaluateVars(t.Deps[i])
 	}
 	for i := 0; i < len(t.Outputs); i++ {
-		t.Outputs[i] = filepath.Clean(t.spec.evaluateVars(t.Outputs[i], nil))
+		t.Outputs[i] = filepath.Clean(t.spec.evaluateVars(t.Outputs[i]))
 	}
 
 	return nil

@@ -1,6 +1,6 @@
 /*
- *  Grumble - A simple build automation tool written in Go
- *  Copyright (C) 2016  Roland Singer <roland.singer[at]desertbit.com>
+ *  grml - A simple build automation tool written in Go
+ *  Copyright (C) 2017  Roland Singer <roland.singer[at]desertbit.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ func printTarget(t string) {
 	color.Unset()
 }
 
-func printTargets(s *spec.Spec) {
+func printTargetsList(s *spec.Spec) {
 	if len(s.Targets) == 0 {
 		fmt.Println("no targets available")
 		return

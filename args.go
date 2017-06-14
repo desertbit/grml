@@ -1,6 +1,6 @@
 /*
- *  Grumble - A simple build automation tool written in Go
- *  Copyright (C) 2016  Roland Singer <roland.singer[at]desertbit.com>
+ *  grml - A simple build automation tool written in Go
+ *  Copyright (C) 2017  Roland Singer <roland.singer[at]desertbit.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,15 +23,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/desertbit/grml/context"
-
 	"github.com/fatih/color"
 )
 
 func printHelp() {
-	fmt.Println("grumble {FLAGS} [TARGET] ...")
+	fmt.Println("grml {FLAGS} [TARGET] ...")
 	fmt.Println("\nFLAGS:")
-	fmt.Println("  -d | --directory   set an alternative base directory path")
+	fmt.Println("  -d | --directory   set an alternative root directory path")
 	fmt.Println("  -l | --list        print a list of all defined targets")
 	fmt.Println("  -v | --verbose     enable verbose execution mode")
 	fmt.Println("  -h | --help        print this help text")
@@ -39,7 +37,7 @@ func printHelp() {
 	fmt.Println("")
 }
 
-func parseArgs(ctx *context.Context) (err error) {
+func parseArgs(ctx *Context) (err error) {
 	args := os.Args
 
 	// Remove the program name.
@@ -72,7 +70,7 @@ func parseArgs(ctx *context.Context) (err error) {
 		case "-l", "--list":
 			ctx.OnlyPrintAllTargets = true
 		case "-d", "--directory":
-			ctx.BasePath, err = getNext(i)
+			ctx.RootPath, err = getNext(i)
 			if err != nil {
 				return
 			}

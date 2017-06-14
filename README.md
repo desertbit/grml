@@ -1,15 +1,16 @@
-# Grumble - A simple build automation tool written in Go
+# grml - A simple build automation tool written in Go
 
-Grumble is a simple Makefile alternative. Build targets are defined in a `GRUMBLE`
+grml is a simple Makefile alternative. Build targets are defined in a `grml.yaml`
 file located in the project's root directory.
 This file uses the [YAML](http://yaml.org/) syntax.
 
-A minimal `GRUMBLE` file can be expressed as follows:
+A minimal `grml.yaml` file can be expressed as follows:
 
 ```yaml
 targets:
     app:
-        help: build the app
+        help:    build the app
+        default: true
         run: |
             gb build all
 ```
@@ -17,26 +18,45 @@ targets:
 The build is triggered with:
 
 ```
-$ grumble app
+$ grml app
 ```
+
+or just with the default target:
+
+```
+$ grml
+```
+
 
 The run section is called in a shell (sh) process. All sh expressions (`if`, `elif`, ...) are valid.
 
+## Outputs
+
+For each target multiple outputs can be defined. Targets are skipped if the output files exist.
+
+```yaml
+targets:
+    resources:
+        help: build the resources
+        output:
+            - build/resources
+        run: |
+            mkdir -p build
+            touch build/resources
+```
+
 ## Dependencies
 
-For each target multiple outputs can be defined. These outputs can be used as dependencies
-for other build targets. Targets are skipped if no build is required.
+Dependencies can be specified within the **deps** section.
 
 ```yaml
 targets:
     app:
         help:    build the app
-        default: true
         deps:
-            - build/resources
+            - resources
         run: |
             gb build all
-
     resources:
         help: build the resources
         output:
@@ -74,7 +94,7 @@ targets:
     app:
         help: build the app
         deps:
-            - ${buildDir}/resources
+            - resources
         run: |
             echo "building app ${destBin}"
             gb build all
@@ -87,6 +107,15 @@ targets:
             mkdir -p ${buildDir}
             touch ${buildDir}/resources
 ```
+
+### Additonal Variables
+
+The process environment is inherited and following additonal variables are set:
+
+| KEY  | VALUE                                                          |
+|:-----|:---------------------------------------------------------------|
+| ROOT | Path to the root build directory containing the grml.yaml file |
+
 
 ## Final Example
 
@@ -101,16 +130,17 @@ targets:
         help:    build the app
         default: true
         deps:
-            - ${buildDir}/resources
-            - ${buildDir}/db
+            - resources
+            - db
         run: |
             echo "building app ${destBin}"
             gb build all
 
     resources:
-        help: build the resources
+        help:        build the resources
+        help-group:  Resources
         deps:
-            - ${buildDir}/images
+            - images
         output:
             - ${buildDir}/resources
         run: |
@@ -118,7 +148,8 @@ targets:
             touch ${buildDir}/resources
 
     images:
-        help: build the image resources
+        help:        build the image resources
+        help-group:  Resources
         output:
             - ${buildDir}/images
         run: |
