@@ -77,7 +77,8 @@ func init() {
 				output = append(output, fmt.Sprintf("%s: | %v", c.Name, c.Help))
 			}
 
-			printColorln("Builtins:\n")
+			printColorln("Builtins:")
+			printColorln("=========\n")
 			shell.Printf("%s\n\n", columnize.Format(output, config))
 
 			output = nil
@@ -85,10 +86,14 @@ func init() {
 				output = append(output, fmt.Sprintf("%s: | %v", c.Name, c.Help))
 			}
 
-			printColorln("Commands:\n")
+			printColorln("Commands:")
+			printColorln("=========\n")
 			if len(output) > 0 {
 				shell.Printf("%s\n\n", columnize.Format(output, config))
 			}
+
+			printColorln("Sub Commands:")
+			printColorln("=============\n")
 
 			// Only print the first level of sub commands.
 			for _, c := range HelpMap.Commands {
@@ -101,9 +106,8 @@ func init() {
 					output = append(output, fmt.Sprintf("%s: | %v", sc.Name, sc.Help))
 				}
 
-				printColor("Sub Command:")
-				shell.Println(" " + c.Name + "\n")
-				shell.Printf("%s\n\n", columnize.Format(output, config))
+				printColor(c.Name + ":")
+				shell.Printf("\n%s\n\n", columnize.Format(output, config))
 			}
 		},
 	})
