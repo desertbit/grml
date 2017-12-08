@@ -19,6 +19,9 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+
 	"github.com/abiosoft/ishell"
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
@@ -82,6 +85,18 @@ func runShell(args *Args) (err error) {
 	if len(args.Tail) > 0 {
 		return shell.Process(args.Tail...)
 	}
+
+	// TODO: Improve this.
+	// Ignore interrupt signals, because ishell will handle the interrupts anyway.
+	// and the interrupt signals will be passed through automatically to all
+	// client processes. They will exit, but the shell will pop up and stay alive.
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	go func() {
+		for {
+			<-signalChan
+		}
+	}()
 
 	sortHelpMap()
 	printGRML()

@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/abiosoft/ishell"
@@ -84,6 +86,7 @@ func main() {
 		}
 	}
 	global.Env["ROOT"] = global.RootPath
+	global.Env["NUMCPU"] = strconv.Itoa(runtime.NumCPU())
 
 	// Read the specification file.
 	global.SpecPath = filepath.Join(global.RootPath, specFilename)
