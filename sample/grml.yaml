@@ -1,0 +1,61 @@
+env:
+    version:    1.0.0
+    buildDir:   build/
+    destBin:    app-${version}
+
+options:
+    debug:      false
+    hallo:      false
+    debugBackend:
+        - gui
+        - http
+    compiler:
+        - gcc
+        - llvm
+
+commands:
+    app:
+        aliases: [ build ]
+        help: build the app
+        deps:
+            - resources
+            - db
+            - app.test
+        exec: |
+            echo "building app ${destBin}"
+            gb build all
+
+        commands:
+            test:
+                help: test the app
+                deps:
+                    - db
+                    - .aa
+                exec: |
+                    echo "testing..."
+
+                commands:
+                    aa:
+                        help: test the app
+                        exec: |
+                            echo "aaa..."
+
+    resources:
+        help:        build the resources
+        deps:
+            - images
+        exec: |
+            mkdir -p ${buildDir}
+            touch ${buildDir}/resources
+
+    images:
+        help:        build the image resources
+        exec: |
+            mkdir -p ${buildDir}
+            touch ${buildDir}/images
+
+    db:
+        help: build the database files
+        exec: |
+            mkdir -p ${buildDir}
+            touch ${buildDir}/db

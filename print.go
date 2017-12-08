@@ -19,15 +19,14 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"sort"
-
-	"github.com/desertbit/columnize"
-	"github.com/desertbit/grml/spec"
 
 	"github.com/fatih/color"
 )
+
+func setNoColor(b bool) {
+	color.NoColor = b
+}
 
 func fatalErr(err error) {
 	printError(err)
@@ -35,71 +34,42 @@ func fatalErr(err error) {
 }
 
 func printError(err error) {
-	color.Set(color.FgRed, color.Bold, color.Underline)
-	fmt.Print("error:")
+	color.Set(color.FgRed, color.Bold)
+	shell.Print("error:")
 	color.Unset()
-	fmt.Printf(" %v\n", err)
+	shell.Printf(" %v\n", err)
 }
 
-func printDone() {
-	color.Set(color.FgGreen, color.Bold, color.Underline)
-	fmt.Println("done")
-	color.Unset()
-}
-
-func printTarget(t string) {
-	color.Set(color.FgYellow, color.Bold, color.Underline)
-	fmt.Print("target:")
-	color.Unset()
+func printGRML() {
 	color.Set(color.FgYellow, color.Bold)
-	fmt.Printf(" %v\n", t)
+	defer color.Unset()
+
+	shell.Println("               _ ")
+	shell.Println(" ___ ___ _____| |")
+	shell.Println("| . |  _|     | |")
+	shell.Println("|_  |_| |_|_|_|_|")
+	shell.Println("|___|            ")
+	shell.Println("")
+}
+
+func printFlagsHelp() {
+	printGRML()
+	shell.Printf("%v {FLAGS} [COMMAND]\n", color.HiYellowString("grml"))
+
+	shell.Println("\nFlags:")
+	shell.Println("  -d | --directory   set an alternative root directory path")
+	shell.Println("  -v | --verbose     enable verbose execution mode")
+	shell.Println("  -h | --help        print this help text")
+	shell.Println("  --no-color         disable color output")
+	shell.Println("")
+}
+
+func printColor(s string) {
+	color.Set(color.FgYellow)
+	shell.Print(s)
 	color.Unset()
 }
 
-func printTargetsList(s *spec.Spec) {
-	if len(s.Targets) == 0 {
-		fmt.Println("no targets available")
-		return
-	}
-
-	// Obtain all groups.
-	var groups []string
-GroupLoop:
-	for _, t := range s.Targets {
-		for _, g := range groups {
-			if g == t.HelpGroup {
-				continue GroupLoop
-			}
-		}
-		groups = append(groups, t.HelpGroup)
-	}
-
-	sort.Strings(groups)
-
-	config := columnize.DefaultConfig()
-	config.Delim = "|"
-	config.Glue = "    "
-
-	for _, g := range groups {
-		if len(g) == 0 {
-			fmt.Println()
-		} else {
-			fmt.Printf("\n%s:\n\n", g)
-		}
-
-		var names []string
-		for name := range s.Targets {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-
-		var output []string
-		for _, name := range names {
-			t := s.Targets[name]
-			if t.HelpGroup == g {
-				output = append(output, fmt.Sprintf("%s | %s", name, t.Help))
-			}
-		}
-		fmt.Printf("%s\n\n", columnize.Format(output, config))
-	}
+func printColorln(s string) {
+	printColor(s + "\n")
 }

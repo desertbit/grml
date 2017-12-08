@@ -32,33 +32,31 @@ import (
 
 // Spec defines a grml build file.
 type Spec struct {
-	//Options map[string]interface{} TODO
-	Env     map[string]string  `yaml:"-"`
-	EnvMap  yaml.MapSlice      `yaml:"env"`
-	Targets map[string]*Target `yaml:"targets"`
+	Env           map[string]string      `yaml:"-"`
+	EnvMap        yaml.MapSlice          `yaml:"env"`
+	Options       map[string]interface{} `yaml:"options"`
+	ChoiceOptions ChoiceOptions          `yaml:"-"`
+	CheckOptions  CheckOptions           `yaml:"-"`
+	Commands      Commands               `yaml:"commands"`
 }
 
 // ExecEnv returns the execute process environment variables.
 func (s Spec) ExecEnv() (env []string) {
-	env = make([]string, len(s.Env))
-	i := 0
-
+	// Environment variables.
 	for k, v := range s.Env {
-		env[i] = fmt.Sprintf("%s=%s", k, v)
-		i++
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	// Check options.
+	for k, o := range s.CheckOptions {
+		env = append(env, fmt.Sprintf("%s=%v", k, o))
+	}
+
+	// Choice options.
+	for k, o := range s.ChoiceOptions {
+		env = append(env, fmt.Sprintf("%s=%v", k, o.Options[o.Set]))
 	}
 	return
-}
-
-// DefaultTarget returns the default run target if specified.
-// Otherwise nil is returned.
-func (s Spec) DefaultTarget() *Target {
-	for _, t := range s.Targets {
-		if t.Default {
-			return t
-		}
-	}
-	return nil
 }
 
 //######################//
@@ -71,6 +69,40 @@ func (s *Spec) evaluateVars(str string) string {
 		str = strings.Replace(str, key, value, -1)
 	}
 	return str
+}
+
+func (s *Spec) prepareOptions() (err error) {
+	for name, i := range s.Options {
+		switch v := i.(type) {
+		case bool:
+			if _, ok := s.CheckOptions[name]; ok {
+				return fmt.Errorf("option already set: %v", name)
+			}
+
+			s.CheckOptions[name] = v
+
+		case []interface{}:
+			if _, ok := s.ChoiceOptions[name]; ok {
+				return fmt.Errorf("option already set: %v", name)
+			} else if len(v) == 0 {
+				return fmt.Errorf("invalid option: %v", name)
+			}
+
+			list := make([]string, len(v))
+			for i, iv := range v {
+				list[i] = fmt.Sprintf("%v", iv)
+			}
+
+			s.ChoiceOptions[name] = &ChoiceOption{
+				Set:     0,
+				Options: list,
+			}
+
+		default:
+			return fmt.Errorf("invalid option: %v: %v", name, i)
+		}
+	}
+	return
 }
 
 //##############//
@@ -86,7 +118,10 @@ func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
 		return
 	}
 
-	s = new(Spec)
+	s = &Spec{
+		ChoiceOptions: make(ChoiceOptions),
+		CheckOptions:  make(CheckOptions),
+	}
 	err = yaml.Unmarshal(data, s)
 	if err != nil {
 		return
@@ -115,13 +150,28 @@ func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
 		}
 	}
 
-	// Initialize the private target values.
-	for name, t := range s.Targets {
-		err = t.init(name, s)
+	// Initialize the commands.
+	for name, c := range s.Commands {
+		err = c.init("", name, s)
 		if err != nil {
-			err = fmt.Errorf("target '%s': %v", name, err)
+			err = fmt.Errorf("command '%s': %v", name, err)
 			return
 		}
+	}
+
+	// Finally link all dependencies.
+	for name, c := range s.Commands {
+		err = c.linkDeps()
+		if err != nil {
+			err = fmt.Errorf("command '%s': %v", name, err)
+			return
+		}
+	}
+
+	// Initialize the options.
+	err = s.prepareOptions()
+	if err != nil {
+		return
 	}
 
 	return

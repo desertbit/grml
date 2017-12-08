@@ -1,5 +1,7 @@
 # grml - A simple build automation tool written in Go
 
+**TODO**: Update the README. The syntax has changed with the latest release.
+
 grml is a simple Makefile alternative. Build targets are defined in a `grml.yaml`
 file located in the project's root directory.
 This file uses the [YAML](http://yaml.org/) syntax.

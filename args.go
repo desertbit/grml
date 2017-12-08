@@ -22,22 +22,18 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/fatih/color"
 )
 
-func printHelp() {
-	fmt.Println("grml {FLAGS} [TARGET] ...")
-	fmt.Println("\nFLAGS:")
-	fmt.Println("  -d | --directory   set an alternative root directory path")
-	fmt.Println("  -l | --list        print a list of all defined targets")
-	fmt.Println("  -v | --verbose     enable verbose execution mode")
-	fmt.Println("  -h | --help        print this help text")
-	fmt.Println("  --no-color         disable color output")
-	fmt.Println("")
+type Args struct {
+	Verbose   bool
+	PrintHelp bool
+	NoColor   bool
+	RootPath  string
+	Tail      []string
 }
 
-func parseArgs(ctx *Context) (err error) {
+func parseArgs() (a *Args, err error) {
+	a = &Args{}
 	args := os.Args
 
 	// Remove the program name.
@@ -45,18 +41,23 @@ func parseArgs(ctx *Context) (err error) {
 		args = args[1:]
 	}
 
+	var i int
+	var lastFlagIndex int
+
 	// Helper.
-	getNext := func(i int) (string, error) {
+	getNext := func() (string, error) {
 		i++
 		if i >= len(args) {
 			return "", fmt.Errorf("no value specified")
 		}
+		lastFlagIndex++
 		return args[i], nil
 	}
 
-	// Flags.
-	var lastFlagIndex int
-	for i, f := range args {
+	// Parse the Flags.
+	for ; i < len(args); i++ {
+		f := args[i]
+
 		if !strings.HasPrefix(f, "-") {
 			break
 		}
@@ -65,27 +66,24 @@ func parseArgs(ctx *Context) (err error) {
 
 		switch f {
 		case "-h", "--help":
-			printHelp()
-			os.Exit(0)
-		case "-l", "--list":
-			ctx.OnlyPrintAllTargets = true
+			a.PrintHelp = true
 		case "-d", "--directory":
-			ctx.RootPath, err = getNext(i)
+			a.RootPath, err = getNext()
 			if err != nil {
 				return
 			}
 		case "-v", "--verbose":
-			ctx.Verbose = true
+			a.Verbose = true
 		case "--no-color":
-			color.NoColor = true
+			a.NoColor = true
 		default:
 			err = fmt.Errorf("invalid flag: %s", f)
 			return
 		}
 	}
 
-	// Passed targets.
-	ctx.Targets = args[lastFlagIndex:]
+	// Add all unparsed strings to the tail slice.
+	a.Tail = args[lastFlagIndex:]
 
 	return
 }

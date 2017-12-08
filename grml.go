@@ -21,181 +21,134 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/abiosoft/ishell"
 	"github.com/desertbit/grml/spec"
-	"github.com/desertbit/topsort"
 )
 
 const (
 	specFilename = "grml.yaml"
 )
 
+var global struct {
+	Verbose  bool
+	RootPath string
+	SpecPath string
+	Env      map[string]string
+	Spec     *spec.Spec
+}
+
+func init() {
+	global.Env = make(map[string]string)
+}
+
 func main() {
-	var err error
-
-	// Our build context.
-	ctx := &Context{}
-
-	// Set the initial root path to the current working dir.
-	ctx.RootPath, err = os.Getwd()
-	if err != nil {
-		fatalErr(fmt.Errorf("failed to obtain the current working directory: %v", err))
-	}
-
 	// Parse the command line arguments.
-	err = parseArgs(ctx)
+	args, err := parseArgs()
 	if err != nil {
 		fatalErr(err)
 	}
 
+	global.Verbose = args.Verbose
+	setNoColor(args.NoColor)
+
+	if args.PrintHelp {
+		printFlagsHelp()
+		os.Exit(0)
+	}
+
+	// Set the initial root path to the current working dir if not set through flags.
+	if len(args.RootPath) > 0 {
+		global.RootPath = args.RootPath
+	} else {
+		global.RootPath, err = os.Getwd()
+		if err != nil {
+			fatalErr(fmt.Errorf("failed to obtain the current working directory: %v", err))
+		}
+	}
+
 	// Get the absolute path.
-	ctx.RootPath, err = filepath.Abs(ctx.RootPath)
+	global.RootPath, err = filepath.Abs(global.RootPath)
 	if err != nil {
 		fatalErr(err)
 	}
 
 	// Prepare the environment variables.
 	// Inherit the current process environment.
-	env := make(map[string]string)
 	for _, v := range os.Environ() {
 		p := strings.Index(v, "=")
 		if p > 0 {
-			env[v[0:p]] = v[p+1:]
+			global.Env[v[0:p]] = v[p+1:]
 		}
 	}
-	env["ROOT"] = ctx.RootPath
+	global.Env["ROOT"] = global.RootPath
 
 	// Read the specification file.
-	specPath := filepath.Join(ctx.RootPath, specFilename)
-	spec, err := spec.ParseSpec(specPath, env)
+	global.SpecPath = filepath.Join(global.RootPath, specFilename)
+	global.Spec, err = spec.ParseSpec(global.SpecPath, global.Env)
 	if err != nil {
 		fatalErr(fmt.Errorf("spec file: %v", err))
 	}
 
-	// Set the default target if no targets were passed.
-	if len(ctx.Targets) == 0 {
-		dt := spec.DefaultTarget()
-		if dt != nil {
-			ctx.Targets = []string{dt.Name()}
-		}
-	}
-
-	// Print all targets if required.
-	if ctx.OnlyPrintAllTargets || len(ctx.Targets) == 0 {
-		printTargetsList(spec)
-		return
-	}
-
-	// Check if the passed targets are valid.
-	for _, t := range ctx.Targets {
-		tt := spec.Targets[t]
-		if tt == nil {
-			fatalErr(fmt.Errorf("target does not exists: %s", t))
-		}
-	}
-
-	// Run the targets.
-	err = runTargets(ctx, spec)
+	err = addSpecCommands(global.Spec)
 	if err != nil {
 		fatalErr(err)
 	}
 
-	printDone()
-}
-
-// runTargets runs the specified targets.
-// Targets are sorted by their dependencies.
-func runTargets(c *Context, s *spec.Spec) error {
-	graph := topsort.NewGraph()
-
-	// Add all graph nodes.
-	for name := range s.Targets {
-		graph.AddNode(name)
-	}
-
-	// Set the edges (dependencies).
-	for name, t := range s.Targets {
-		for _, d := range t.Deps {
-			graph.AddEdge(name, d)
-		}
-	}
-
-	// Sort the targets and run them.
-	for _, tn := range c.Targets {
-		t := s.Targets[tn]
-		if t == nil || !graph.ContainsNode(tn) {
-			return fmt.Errorf("target does not exists: %s", tn)
-		}
-
-		// Do the topological sort for each specified build target.
-		sorted, err := graph.TopSort(tn)
-		if err != nil {
-			return err
-		}
-
-		for _, st := range sorted {
-			tt := s.Targets[st]
-			if tt == nil {
-				return fmt.Errorf("target does not exists: %s", st)
-			}
-
-			err = runTarget(c, tt)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func runTarget(c *Context, t *spec.Target) error {
-	required, err := c.RunRequired(t)
+	err = runShell(args)
 	if err != nil {
-		return err
-	} else if !required {
-		return nil
+		fatalErr(err)
 	}
-
-	// Log.
-	printTarget(t.Name())
-
-	// Our process environment.
-	env := t.Spec().ExecEnv()
-
-	// Go go go.
-	err = execCommand(t.Run, c, env)
-	if err != nil {
-		return err
-	}
-
-	// Remember the successfully run target.
-	c.DoneTargets = append(c.DoneTargets, t.Name())
-
-	return nil
 }
 
-func execCommand(cmdStr string, c *Context, env []string) error {
-	if len(cmdStr) == 0 {
-		return nil
+func addSpecCommands(spec *spec.Spec) (err error) {
+	for name, c := range spec.Commands {
+		exc := NewExecContext(c)
+
+		sc := &ishell.Cmd{
+			Name:    name,
+			Aliases: c.Aliases,
+			Help:    c.Help,
+			Func: func(c *ishell.Context) {
+				exErr := exc.Exec()
+				if exErr != nil {
+					printError(exErr)
+				}
+			},
+		}
+
+		if len(c.Commands) > 0 {
+			addSubCommands(sc, c.Commands)
+		}
+
+		addCmd(sc)
 	}
 
-	// Prepend the shell attribute to exit immediately on error.
-	attr := "set -e\n"
+	return
+}
 
-	// Enable verbose mode if set.
-	if c.Verbose {
-		attr += "set -x\n"
+func addSubCommands(parent *ishell.Cmd, commands spec.Commands) {
+	for name, c := range commands {
+		exc := NewExecContext(c)
+
+		sc := &ishell.Cmd{
+			Name:    name,
+			Aliases: c.Aliases,
+			Help:    c.Help,
+			Func: func(c *ishell.Context) {
+				exErr := exc.Exec()
+				if exErr != nil {
+					printError(exErr)
+				}
+			},
+		}
+
+		if len(c.Commands) > 0 {
+			addSubCommands(sc, c.Commands)
+		}
+
+		parent.AddCmd(sc)
 	}
-
-	cmd := exec.Command("sh", "-c", attr+cmdStr)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Dir = c.RootPath
-	cmd.Env = env
-	return cmd.Run()
 }
