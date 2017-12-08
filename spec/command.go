@@ -91,15 +91,10 @@ func (c *Command) linkDeps() (err error) {
 	var cur *Command
 
 	for _, d := range c.DepsStrings {
+		parent = c.spec.Commands
+
 		if len(d) == 0 {
 			return fmt.Errorf("empty dependency value")
-		}
-
-		if strings.HasPrefix(d, ".") {
-			d = strings.TrimPrefix(d, ".")
-			parent = c.Commands
-		} else {
-			parent = c.spec.Commands
 		}
 
 		split := strings.Split(d, ".")

@@ -30,7 +30,7 @@ commands:
                 help: test the app
                 deps:
                     - db
-                    - .aa
+                    - app.test.aa
                 exec: |
                     echo "testing..."
 
