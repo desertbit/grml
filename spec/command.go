@@ -31,6 +31,7 @@ type Commands map[string]*Command
 
 // Command defines a build command.
 type Command struct {
+	AsRoot      bool       `yaml:"as-root"`
 	Aliases     []string   `yaml:"aliases"`
 	Help        string     `yaml:"help"`
 	Deps        []*Command `yaml:"-"`

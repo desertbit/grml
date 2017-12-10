@@ -91,7 +91,7 @@ func (e *ExecContext) runCommand(cmd *spec.Command) (err error) {
 	env := global.Spec.ExecEnv()
 
 	// Go go go.
-	err = e.runShellCommand(cmd.Exec, env)
+	err = e.runShellCommand(cmd.Exec, env, cmd.AsRoot)
 	if err != nil {
 		return
 	}
@@ -102,7 +102,7 @@ func (e *ExecContext) runCommand(cmd *spec.Command) (err error) {
 	return
 }
 
-func (e *ExecContext) runShellCommand(cmdStr string, env []string) error {
+func (e *ExecContext) runShellCommand(cmdStr string, env []string, asRoot bool) error {
 	if len(cmdStr) == 0 {
 		return nil
 	}
@@ -115,7 +115,13 @@ func (e *ExecContext) runShellCommand(cmdStr string, env []string) error {
 		attr += "set -x\n"
 	}
 
-	cmd := exec.Command("sh", "-c", attr+cmdStr)
+	var cmd *exec.Cmd
+	if asRoot {
+		cmd = exec.Command("sudo", "-E", "sh", "-c", attr+cmdStr)
+	} else {
+
+		cmd = exec.Command("sh", "-c", attr+cmdStr)
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
