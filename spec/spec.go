@@ -54,7 +54,7 @@ func (s Spec) ExecEnv() (env []string) {
 
 	// Choice options.
 	for k, o := range s.ChoiceOptions {
-		env = append(env, fmt.Sprintf("%s=%v", k, o.Options[o.Set]))
+		env = append(env, fmt.Sprintf("%s=%v", k, o.Set))
 	}
 	return
 }
@@ -94,7 +94,7 @@ func (s *Spec) prepareOptions() (err error) {
 			}
 
 			s.ChoiceOptions[name] = &ChoiceOption{
-				Set:     0,
+				Set:     list[0],
 				Options: list,
 			}
 

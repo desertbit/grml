@@ -19,7 +19,7 @@
 package main
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/fatih/color"
 )
@@ -28,45 +28,18 @@ func setNoColor(b bool) {
 	color.NoColor = b
 }
 
-func fatalErr(err error) {
-	printError(err)
-	os.Exit(1)
-}
-
-func printError(err error) {
-	color.Set(color.FgRed, color.Bold)
-	shell.Print("error:")
-	color.Unset()
-	shell.Printf(" %v\n", err)
-}
-
 func printGRML() {
-	color.Set(color.FgYellow, color.Bold)
-	defer color.Unset()
-
-	shell.Println("               _ ")
-	shell.Println(" ___ ___ _____| |")
-	shell.Println("| . |  _|     | |")
-	shell.Println("|_  |_| |_|_|_|_|")
-	shell.Println("|___|            ")
-	shell.Println("")
-}
-
-func printFlagsHelp() {
-	printGRML()
-	shell.Printf("%v {FLAGS} [COMMAND]\n", color.HiYellowString("grml"))
-
-	shell.Println("\nFlags:")
-	shell.Println("  -d | --directory   set an alternative root directory path")
-	shell.Println("  -v | --verbose     enable verbose execution mode")
-	shell.Println("  -h | --help        print this help text")
-	shell.Println("  --no-color         disable color output")
-	shell.Println("")
+	fmt.Println("               _ ")
+	fmt.Println(" ___ ___ _____| |")
+	fmt.Println("| . |  _|     | |")
+	fmt.Println("|_  |_| |_|_|_|_|")
+	fmt.Println("|___|            ")
+	fmt.Println("")
 }
 
 func printColor(s string) {
 	color.Set(color.FgYellow)
-	shell.Print(s)
+	fmt.Print(s)
 	color.Unset()
 }
 

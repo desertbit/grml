@@ -21,17 +21,36 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/abiosoft/ishell"
 	"github.com/desertbit/grml/spec"
+	"github.com/desertbit/grumble"
+	"github.com/fatih/color"
 )
 
 const (
 	specFilename = "grml.yaml"
+)
+
+var (
+	app = grumble.New(&grumble.Config{
+		Name:                  "grml",
+		Description:           "A simple build automation tool written in Go",
+		Prompt:                "grml » ",
+		PromptColor:           color.New(color.FgYellow, color.Bold),
+		HelpHeadlineColor:     color.New(color.FgYellow),
+		HelpHeadlineUnderline: true,
+		HelpSubCommands:       true,
+
+		Flags: func(f *grumble.Flags) {
+			f.String("d", "directory", "", "set an alternative root directory path")
+			f.Bool("v", "verbose", false, "enable verbose execution mode")
+		},
+	})
 )
 
 var global struct {
@@ -47,78 +66,90 @@ func init() {
 }
 
 func main() {
-	// Parse the command line arguments.
-	args, err := parseArgs()
-	if err != nil {
-		fatalErr(err)
-	}
+	app.SetPrintASCIILogo(func(a *grumble.App) {
+		printGRML()
+	})
 
-	global.Verbose = args.Verbose
-	setNoColor(args.NoColor)
+	app.SetShellHook(func(a *grumble.App) error {
+		// Ignore interrupt signals, because grumble will handle the interrupts anyway.
+		// and the interrupt signals will be passed through automatically to all
+		// client processes. They will exit, but the shell will pop up and stay alive.
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt)
+		go func() {
+			for {
+				<-signalChan
+			}
+		}()
+		return nil
+	})
 
-	if args.PrintHelp {
-		printFlagsHelp()
-		os.Exit(0)
-	}
+	app.SetInitHook(func(a *grumble.App, flags grumble.FlagMap) (err error) {
+		// Initialize global flag values.
+		global.Verbose = flags.Bool("verbose")
+		global.RootPath = flags.String("directory")
+		setNoColor(app.Config().NoColor)
 
-	// Set the initial root path to the current working dir if not set through flags.
-	if len(args.RootPath) > 0 {
-		global.RootPath = args.RootPath
-	} else {
-		global.RootPath, err = os.Getwd()
+		// Set the initial root path to the current working dir if not set through flags.
+		if len(global.RootPath) == 0 {
+			global.RootPath, err = os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to obtain the current working directory: %v", err)
+			}
+		}
+
+		// Get the absolute path.
+		global.RootPath, err = filepath.Abs(global.RootPath)
 		if err != nil {
-			fatalErr(fmt.Errorf("failed to obtain the current working directory: %v", err))
+			return err
 		}
-	}
 
-	// Get the absolute path.
-	global.RootPath, err = filepath.Abs(global.RootPath)
-	if err != nil {
-		fatalErr(err)
-	}
-
-	// Prepare the environment variables.
-	// Inherit the current process environment.
-	for _, v := range os.Environ() {
-		p := strings.Index(v, "=")
-		if p > 0 {
-			global.Env[v[0:p]] = v[p+1:]
+		// Prepare the environment variables.
+		// Inherit the current process environment.
+		for _, v := range os.Environ() {
+			p := strings.Index(v, "=")
+			if p > 0 {
+				global.Env[v[0:p]] = v[p+1:]
+			}
 		}
-	}
-	global.Env["ROOT"] = global.RootPath
-	global.Env["NUMCPU"] = strconv.Itoa(runtime.NumCPU())
+		global.Env["ROOT"] = global.RootPath
+		global.Env["NUMCPU"] = strconv.Itoa(runtime.NumCPU())
 
-	// Read the specification file.
-	global.SpecPath = filepath.Join(global.RootPath, specFilename)
-	global.Spec, err = spec.ParseSpec(global.SpecPath, global.Env)
-	if err != nil {
-		fatalErr(fmt.Errorf("spec file: %v", err))
-	}
+		// Read the specification file.
+		global.SpecPath = filepath.Join(global.RootPath, specFilename)
+		global.Spec, err = spec.ParseSpec(global.SpecPath, global.Env)
+		if err != nil {
+			return fmt.Errorf("spec file: %v", err)
+		}
 
-	err = addSpecCommands(global.Spec)
-	if err != nil {
-		fatalErr(err)
-	}
+		// Init the option commands.
+		initOptions()
 
-	err = runShell(args)
-	if err != nil {
-		fatalErr(err)
-	}
+		// Group all commands to the builtin group.
+		cmds := app.Commands().All()
+		for _, c := range cmds {
+			c.HelpGroup = "Builtins:"
+		}
+
+		// Register the commands.
+		addSpecCommands(global.Spec)
+
+		return nil
+	})
+
+	grumble.Main(app)
 }
 
-func addSpecCommands(spec *spec.Spec) (err error) {
+func addSpecCommands(spec *spec.Spec) {
 	for name, c := range spec.Commands {
 		exc := NewExecContext(c)
 
-		sc := &ishell.Cmd{
+		sc := &grumble.Command{
 			Name:    name,
 			Aliases: c.Aliases,
 			Help:    c.Help,
-			Func: func(c *ishell.Context) {
-				exErr := exc.Exec()
-				if exErr != nil {
-					printError(exErr)
-				}
+			Run: func(c *grumble.Context) error {
+				return exc.Exec()
 			},
 		}
 
@@ -126,25 +157,20 @@ func addSpecCommands(spec *spec.Spec) (err error) {
 			addSubCommands(sc, c.Commands)
 		}
 
-		addCmd(sc)
+		app.AddCommand(sc)
 	}
-
-	return
 }
 
-func addSubCommands(parent *ishell.Cmd, commands spec.Commands) {
+func addSubCommands(parent *grumble.Command, commands spec.Commands) {
 	for name, c := range commands {
 		exc := NewExecContext(c)
 
-		sc := &ishell.Cmd{
+		sc := &grumble.Command{
 			Name:    name,
 			Aliases: c.Aliases,
 			Help:    c.Help,
-			Func: func(c *ishell.Context) {
-				exErr := exc.Exec()
-				if exErr != nil {
-					printError(exErr)
-				}
+			Run: func(c *grumble.Context) error {
+				return exc.Exec()
 			},
 		}
 
@@ -152,6 +178,6 @@ func addSubCommands(parent *ishell.Cmd, commands spec.Commands) {
 			addSubCommands(sc, c.Commands)
 		}
 
-		parent.AddCmd(sc)
+		parent.AddCommand(sc)
 	}
 }

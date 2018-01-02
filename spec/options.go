@@ -27,6 +27,6 @@ type CheckOptions map[string]bool
 type ChoiceOptions map[string]*ChoiceOption
 
 type ChoiceOption struct {
-	Set     int
+	Set     string
 	Options []string
 }

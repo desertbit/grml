@@ -20,12 +20,14 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/abiosoft/ishell"
+	"github.com/AlecAivazis/survey"
 	"github.com/desertbit/columnize"
+	"github.com/desertbit/grumble"
 )
 
-func init() {
+func initOptions() {
 	// Columnize options.
 	config := columnize.DefaultConfig()
 	config.Delim = "|"
@@ -33,10 +35,10 @@ func init() {
 	config.Prefix = "  "
 
 	// Options Command.
-	cmd := &ishell.Cmd{
+	cmd := &grumble.Command{
 		Name: "options",
 		Help: "print & handle options",
-		Func: func(c *ishell.Context) {
+		Run: func(c *grumble.Context) error {
 			fmt.Println()
 
 			// Print all check options.
@@ -47,91 +49,100 @@ func init() {
 
 			if len(output) > 0 {
 				printColorln("Check Options:\n")
-				shell.Printf("%s\n\n", columnize.Format(output, config))
+				fmt.Printf("%s\n\n", columnize.Format(output, config))
 			}
 
 			// Print all choice options.
 			output = nil
 			for name, o := range global.Spec.ChoiceOptions {
-				output = append(output, fmt.Sprintf("%s: | %v", name, o.Options[o.Set]))
+				output = append(output, fmt.Sprintf("%s: | %v", name, o.Set))
 			}
 
 			if len(output) > 0 {
 				printColorln("Choice Options:\n")
-				shell.Printf("%s\n\n", columnize.Format(output, config))
+				fmt.Printf("%s\n\n", columnize.Format(output, config))
 			}
+			return nil
 		},
 	}
 
 	// Check command.
-	cmd.AddCmd(&ishell.Cmd{
+	cmd.AddCommand(&grumble.Command{
 		Name: "check",
 		Help: "select options",
-		Func: func(c *ishell.Context) {
+		Run: func(c *grumble.Context) error {
 			l := len(global.Spec.CheckOptions)
 			if l == 0 {
-				shell.Println("no check options available")
-				return
+				return fmt.Errorf("no check options available")
 			}
 
 			options := make([]string, l)
-			var selected []int
+			var defaults []string
 
 			i := 0
 			for name, o := range global.Spec.CheckOptions {
 				options[i] = name
 				if o {
-					selected = append(selected, i)
+					defaults = append(defaults, name)
 				}
 				i++
 			}
 
-			selected = c.Checklist(options, "Select Options:", selected)
+			var selected []string
+			prompt := &survey.MultiSelect{
+				Message: "Select Options:",
+				Options: options,
+				Default: defaults,
+			}
+			survey.AskOne(prompt, &selected, nil)
 
 		Loop:
-			for i = 0; i < l; i++ {
-				name := options[i]
+			for _, o := range options {
 				for _, s := range selected {
-					if i == s {
-						global.Spec.CheckOptions[name] = true
+					if s == o {
+						global.Spec.CheckOptions[o] = true
 						continue Loop
 					}
 				}
-				global.Spec.CheckOptions[name] = false
+				global.Spec.CheckOptions[o] = false
 			}
-
-			shell.Println()
+			return nil
 		},
 	})
 
 	// Set command.
-	cmd.AddCmd(&ishell.Cmd{
-		Name: "set",
-		Help: "set a specific choice option",
-		Completer: func([]string) []string {
+	cmd.AddCommand(&grumble.Command{
+		Name:      "set",
+		Help:      "set a specific choice option",
+		AllowArgs: true,
+		Completer: func(prefix string, args []string) []string {
 			var words []string
 			for name := range global.Spec.ChoiceOptions {
-				words = append(words, name)
+				if strings.HasPrefix(name, prefix) {
+					words = append(words, name)
+				}
 			}
 			return words
 		},
-		Func: func(c *ishell.Context) {
+		Run: func(c *grumble.Context) error {
 			if len(c.Args) != 1 {
-				shell.Println("invalid args: one choice option required")
-				return
+				return fmt.Errorf("invalid args: one choice option required")
 			}
 
 			name := c.Args[0]
 			o := global.Spec.ChoiceOptions[name]
 			if o == nil {
-				shell.Println("invalid choice option: does not exists")
-				return
+				return fmt.Errorf("invalid choice option: does not exists")
 			}
 
-			o.Set = c.MultiChoice(o.Options, "Select Option:")
-			shell.Println()
+			prompt := &survey.Select{
+				Message: "Select Option:",
+				Options: o.Options,
+			}
+			survey.AskOne(prompt, &o.Set, nil)
+			return nil
 		},
 	})
 
-	addBuiltinCmd(cmd)
+	app.AddCommand(cmd)
 }
