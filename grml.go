@@ -70,7 +70,7 @@ func main() {
 		printGRML()
 	})
 
-	app.SetShellHook(func(a *grumble.App) error {
+	app.OnShell(func(a *grumble.App) error {
 		// Ignore interrupt signals, because grumble will handle the interrupts anyway.
 		// and the interrupt signals will be passed through automatically to all
 		// client processes. They will exit, but the shell will pop up and stay alive.
@@ -84,7 +84,7 @@ func main() {
 		return nil
 	})
 
-	app.SetInitHook(func(a *grumble.App, flags grumble.FlagMap) (err error) {
+	app.OnInit(func(a *grumble.App, flags grumble.FlagMap) (err error) {
 		// Initialize global flag values.
 		global.Verbose = flags.Bool("verbose")
 		global.RootPath = flags.String("directory")
