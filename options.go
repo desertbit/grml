@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AlecAivazis/survey"
 	"github.com/desertbit/columnize"
 	"github.com/desertbit/grumble"
+	"gopkg.in/AlecAivazis/survey.v1"
 )
 
 func initOptions() {
@@ -112,9 +112,11 @@ func initOptions() {
 
 	// Set command.
 	cmd.AddCommand(&grumble.Command{
-		Name:      "set",
-		Help:      "set a specific choice option",
-		AllowArgs: true,
+		Name: "set",
+		Help: "set a specific choice option",
+		Args: func(a *grumble.Args) {
+			a.String("option", "name of option")
+		},
 		Completer: func(prefix string, args []string) []string {
 			var words []string
 			for name := range global.Spec.ChoiceOptions {
@@ -129,8 +131,7 @@ func initOptions() {
 				return fmt.Errorf("invalid args: one choice option required")
 			}
 
-			name := c.Args[0]
-			o := global.Spec.ChoiceOptions[name]
+			o := global.Spec.ChoiceOptions[c.Args.String("option")]
 			if o == nil {
 				return fmt.Errorf("invalid choice option: does not exists")
 			}

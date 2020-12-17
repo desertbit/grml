@@ -1,3 +1,4 @@
-*.~
-/grml
+.*
 .idea
+.vscode
+/grml
