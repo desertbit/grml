@@ -31,7 +31,7 @@ import (
 //############//
 
 const (
-	Version = 1
+	Version = 0
 )
 
 // Spec defines a grml build file.
@@ -130,7 +130,7 @@ func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
 	err = yaml.Unmarshal(data, s)
 	if err != nil {
 		return
-	} else if s.Version != 0 && s.Version != Version { // If empty (0), then we expect to be the initial version.
+	} else if s.Version != Version {
 		err = fmt.Errorf("incompatible grml version: file=%v current=%v", s.Version, Version)
 		return
 	}
