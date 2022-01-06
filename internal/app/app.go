@@ -72,21 +72,6 @@ func Run() {
 		env:     make(map[string]string),
 	}
 
-	a.AddCommand(&grumble.Command{
-		Name: "reload",
-		Help: "reload the grml file and keep the current options",
-		Run: func(c *grumble.Context) (err error) {
-			err = a.reload()
-			if err != nil {
-				return
-			}
-
-			a.Println("parsed grml file and successfully reloaded")
-			a.printOptions()
-			return
-		},
-	})
-
 	a.SetPrintASCIILogo(func(gapp *grumble.App) {
 		a.printGRML()
 	})
@@ -128,6 +113,33 @@ func Run() {
 
 		// Load the manifest.
 		return a.load()
+	})
+
+	a.AddCommand(&grumble.Command{
+		Name: "reload",
+		Help: "reload the grml file and keep the current options",
+		Run: func(c *grumble.Context) (err error) {
+			err = a.reload()
+			if err != nil {
+				return
+			}
+
+			a.Println("parsed grml file and reloaded successfully")
+			a.printOptions()
+			return
+		},
+	})
+
+	a.AddCommand(&grumble.Command{
+		Name: "verbose",
+		Help: "set the verbose execution mode",
+		Args: func(a *grumble.Args) {
+			a.Bool("verbose", "enable or disable the mode")
+		},
+		Run: func(c *grumble.Context) (err error) {
+			a.verbose = c.Args.Bool("verbose")
+			return
+		},
 	})
 
 	grumble.Main(a.App)

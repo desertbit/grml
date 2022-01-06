@@ -37,7 +37,7 @@ type Manifest struct {
 
 	Env         yaml.MapSlice          `yaml:"env"` // Use MapSlice to preserve order.
 	Options     map[string]interface{} `yaml:"options"`
-	Interpreter string                 `yaml:"import"`
+	Interpreter string                 `yaml:"interpreter"`
 	Import      []string               `yaml:"import"`
 	Commands    Commands               `yaml:"commands"`
 }
