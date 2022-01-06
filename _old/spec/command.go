@@ -34,6 +34,7 @@ type Command struct {
 	AsRoot      bool       `yaml:"as-root"`
 	Aliases     []string   `yaml:"aliases"`
 	Help        string     `yaml:"help"`
+	Args        []string   `yaml:"args"`
 	Deps        []*Command `yaml:"-"`
 	DepsStrings []string   `yaml:"deps"`
 	Exec        string     `yaml:"exec"`

@@ -122,7 +122,7 @@ func ParseSpec(path string, env map[string]string) (s *Spec, err error) {
 		ChoiceOptions: make(ChoiceOptions),
 		CheckOptions:  make(CheckOptions),
 	}
-	err = yaml.Unmarshal(data, s)
+	err = yaml.UnmarshalStrict(data, s)
 	if err != nil {
 		return
 	}

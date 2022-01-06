@@ -16,10 +16,46 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package options
 
-import "github.com/desertbit/grml/internal/app"
+type Options struct {
+	Bools   map[string]bool
+	Choices map[string]*Choice
+}
 
-func main() {
-	app.Run()
+type Choice struct {
+	Active  string
+	Options []string
+}
+
+func New() *Options {
+	return &Options{
+		Bools:   make(map[string]bool),
+		Choices: make(map[string]*Choice),
+	}
+}
+
+func (o *Options) Restore(p *Options) {
+	// If the value exists in the previous options, then restore it.
+	for k, _ := range o.Bools {
+		if v, ok := p.Bools[k]; ok {
+			o.Bools[k] = v
+		}
+	}
+
+Loop:
+	for k, v := range o.Choices {
+		pv, ok := p.Choices[k]
+		if !ok {
+			continue
+		}
+
+		// Ensure the active value exists
+		for _, s := range v.Options {
+			if pv.Active == s {
+				v.Active = s
+				continue Loop
+			}
+		}
+	}
 }

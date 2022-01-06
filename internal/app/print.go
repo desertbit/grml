@@ -16,10 +16,31 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package app
 
-import "github.com/desertbit/grml/internal/app"
+import (
+	"github.com/fatih/color"
+)
 
-func main() {
-	app.Run()
+func (a *app) setNoColor(b bool) {
+	color.NoColor = b
+}
+
+func (a *app) printGRML() {
+	a.Println("               _ ")
+	a.Println(" ___ ___ _____| |")
+	a.Println("| . |  _|     | |")
+	a.Println("|_  |_| |_|_|_|_|")
+	a.Println("|___|            ")
+	a.Println("")
+}
+
+func (a *app) printColor(s string) {
+	color.Set(color.FgYellow)
+	a.Print(s)
+	color.Unset()
+}
+
+func (a *app) printColorln(s string) {
+	a.printColor(s + "\n")
 }
