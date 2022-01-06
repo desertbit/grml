@@ -117,6 +117,14 @@ func Run() {
 		return a.load()
 	})
 
+	grumble.Main(a.App)
+}
+
+func (a *app) load() (err error) {
+	// Remove previous commands first.
+	a.Commands().RemoveAll()
+
+	// Add built-int commands.
 	a.AddCommand(&grumble.Command{
 		Name: "reload",
 		Help: "reload the grml file and keep the current options",
@@ -125,13 +133,11 @@ func Run() {
 			if err != nil {
 				return
 			}
-
 			a.Println("parsed grml file and reloaded successfully")
 			a.printOptions()
 			return
 		},
 	})
-
 	a.AddCommand(&grumble.Command{
 		Name: "verbose",
 		Help: "set the verbose execution mode",
@@ -144,10 +150,6 @@ func Run() {
 		},
 	})
 
-	grumble.Main(a.App)
-}
-
-func (a *app) load() (err error) {
 	// Read the grml file.
 	a.manifest, err = manifest.Parse(a.manifestPath)
 	if err != nil {
@@ -179,7 +181,6 @@ func (a *app) load() (err error) {
 	a.env["NUMCPU"] = strconv.Itoa(runtime.NumCPU())
 	a.env = a.manifest.EvalEnv(a.env) // Add values from manifest.
 
-	// TODO: Somehow clear is not present in this list?
 	// Group all commands to the builtin group (help message).
 	cmds := a.Commands().All()
 	for _, c := range cmds {
@@ -193,13 +194,11 @@ func (a *app) load() (err error) {
 	}
 
 	// Register the commands to grumble.
-	// TODO: remove previous commands!
 	a.registerCommands(a.AddCommand, a.commands)
 
 	return
 }
 
-// TODO: reload does not seam to load the new exec body
 func (a *app) reload() (err error) {
 	// Store current options.
 	oldOpts := a.options
