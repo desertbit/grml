@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/desertbit/grml/internal/cmd"
 	"github.com/desertbit/grml/internal/manifest"
 	"github.com/desertbit/grml/internal/options"
 	"github.com/desertbit/grumble"
@@ -48,6 +49,7 @@ type app struct {
 	env      map[string]string
 	manifest *manifest.Manifest
 	options  *options.Options
+	commands cmd.Commands
 }
 
 // Run the application.
@@ -175,21 +177,29 @@ func (a *app) load() (err error) {
 	a.env["PROJECT"] = a.manifest.Project
 	a.env["ROOT"] = a.rootPath
 	a.env["NUMCPU"] = strconv.Itoa(runtime.NumCPU())
+	a.env = a.manifest.EvalEnv(a.env) // Add values from manifest.
 
-	/*
-			// Group all commands to the builtin group.
-		cmds := app.Commands().All()
-		for _, c := range cmds {
-			c.HelpGroup = "Builtins:"
-		}
+	// TODO: Somehow clear is not present in this list?
+	// Group all commands to the builtin group (help message).
+	cmds := a.Commands().All()
+	for _, c := range cmds {
+		c.HelpGroup = "Builtins:"
+	}
 
-		// Register the commands.
-		addSpecCommands(App.Spec)
+	// Prepare the commands.
+	a.commands, err = cmd.ParseManifest(a.manifest)
+	if err != nil {
+		return
+	}
 
-	*/
+	// Register the commands to grumble.
+	// TODO: remove previous commands!
+	a.registerCommands(a.AddCommand, a.commands)
+
 	return
 }
 
+// TODO: reload does not seam to load the new exec body
 func (a *app) reload() (err error) {
 	// Store current options.
 	oldOpts := a.options
@@ -205,5 +215,56 @@ func (a *app) reload() (err error) {
 
 	// Restore as many options as possible.
 	a.options.Restore(oldOpts)
+	return
+}
+
+func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.Commands) {
+	for _, c := range cs {
+		// TODO: Args.
+		localCmd := c // Catch the variable locally for run.
+		gc := &grumble.Command{
+			Name:    c.Name(),
+			Aliases: c.Alias(),
+			Help:    a.evalVar(c.Help()), // Help messages may contain variables.
+			Run: func(c *grumble.Context) error {
+				return a.exec(localCmd)
+			},
+		}
+
+		// Add sub commands to this grumble command.
+		if c.HasSubCommands() {
+			a.registerCommands(gc.AddCommand, c.SubCommands())
+		}
+
+		// Add this grumble command to the parent.
+		parentAddCmd(gc)
+	}
+}
+
+// Hint: options are not included.
+func (a *app) evalVar(str string) string {
+	for key, value := range a.env {
+		key = fmt.Sprintf("${%s}", key)
+		str = strings.Replace(str, key, value, -1)
+	}
+	return str
+}
+
+// execEnv returns the execute process environment variables.
+func (a *app) execEnv() (env []string) {
+	// Environment variables.
+	for k, v := range a.env {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	// Check options.
+	for k, o := range a.options.Bools {
+		env = append(env, fmt.Sprintf("%s=%v", k, o))
+	}
+
+	// Choice options.
+	for k, o := range a.options.Choices {
+		env = append(env, fmt.Sprintf("%s=%v", k, o.Active))
+	}
 	return
 }

@@ -43,7 +43,7 @@ commands:
         deps:
             - resources
         exec: |
-            go-build
+            go build
         commands:
             run:
                 help: run the app after build

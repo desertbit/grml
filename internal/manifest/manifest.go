@@ -53,6 +53,14 @@ type Command struct {
 	Commands Commands `yaml:"commands"`
 }
 
+func (cs Commands) Count() (n int) {
+	n = len(cs)
+	for _, c := range cs {
+		n += c.Commands.Count()
+	}
+	return
+}
+
 func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) {
 	// Prepare and evaluate the environment variables.
 	env = make(map[string]string)
