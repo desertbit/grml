@@ -16,10 +16,11 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package app
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/desertbit/columnize"
@@ -27,41 +28,15 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 )
 
-func initOptions() {
-	// Columnize options.
-	config := columnize.DefaultConfig()
-	config.Delim = "|"
-	config.Glue = "  "
-	config.Prefix = "  "
+// TODO: better option command. maybe a single option command to set all options at once in a tui like menu?
 
+func (a *app) initOptions() {
 	// Options Command.
 	cmd := &grumble.Command{
 		Name: "options",
 		Help: "print & handle options",
 		Run: func(c *grumble.Context) error {
-			fmt.Println()
-
-			// Print all check options.
-			var output []string
-			for name, o := range global.Spec.CheckOptions {
-				output = append(output, fmt.Sprintf("%s: | %v", name, o))
-			}
-
-			if len(output) > 0 {
-				printColorln("Check Options:\n")
-				fmt.Printf("%s\n\n", columnize.Format(output, config))
-			}
-
-			// Print all choice options.
-			output = nil
-			for name, o := range global.Spec.ChoiceOptions {
-				output = append(output, fmt.Sprintf("%s: | %v", name, o.Set))
-			}
-
-			if len(output) > 0 {
-				printColorln("Choice Options:\n")
-				fmt.Printf("%s\n\n", columnize.Format(output, config))
-			}
+			a.printOptions()
 			return nil
 		},
 	}
@@ -71,7 +46,7 @@ func initOptions() {
 		Name: "check",
 		Help: "select options",
 		Run: func(c *grumble.Context) error {
-			l := len(global.Spec.CheckOptions)
+			l := len(a.options.Bools)
 			if l == 0 {
 				return fmt.Errorf("no check options available")
 			}
@@ -80,7 +55,7 @@ func initOptions() {
 			var defaults []string
 
 			i := 0
-			for name, o := range global.Spec.CheckOptions {
+			for name, o := range a.options.Bools {
 				options[i] = name
 				if o {
 					defaults = append(defaults, name)
@@ -100,11 +75,11 @@ func initOptions() {
 			for _, o := range options {
 				for _, s := range selected {
 					if s == o {
-						global.Spec.CheckOptions[o] = true
+						a.options.Bools[o] = true
 						continue Loop
 					}
 				}
-				global.Spec.CheckOptions[o] = false
+				a.options.Bools[o] = false
 			}
 			return nil
 		},
@@ -119,7 +94,7 @@ func initOptions() {
 		},
 		Completer: func(prefix string, args []string) []string {
 			var words []string
-			for name := range global.Spec.ChoiceOptions {
+			for name := range a.options.Choices {
 				if strings.HasPrefix(name, prefix) {
 					words = append(words, name)
 				}
@@ -131,7 +106,7 @@ func initOptions() {
 				return fmt.Errorf("invalid args: one choice option required")
 			}
 
-			o := global.Spec.ChoiceOptions[c.Args.String("option")]
+			o := a.options.Choices[c.Args.String("option")]
 			if o == nil {
 				return fmt.Errorf("invalid choice option: does not exists")
 			}
@@ -140,10 +115,57 @@ func initOptions() {
 				Message: "Select Option:",
 				Options: o.Options,
 			}
-			survey.AskOne(prompt, &o.Set, nil)
+			survey.AskOne(prompt, &o.Active, nil)
 			return nil
 		},
 	})
 
-	app.AddCommand(cmd)
+	a.AddCommand(cmd)
+}
+
+func (a *app) printOptions() {
+	fmt.Println()
+
+	var (
+		output []string
+		keys   []string
+	)
+
+	// Columnize options.
+	config := columnize.DefaultConfig()
+	config.Delim = "|"
+	config.Glue = "  "
+	config.Prefix = "  "
+
+	// Print all check options sorted.
+	for k, _ := range a.options.Bools {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := a.options.Bools[k]
+		output = append(output, fmt.Sprintf("%s: | %v", k, v))
+
+	}
+	if len(output) > 0 {
+		a.printColorln("Check Options:\n")
+		fmt.Printf("%s\n\n", columnize.Format(output, config))
+	}
+
+	// Print all choice options sorted.
+	output = nil
+	keys = nil
+	for k, _ := range a.options.Choices {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		o := a.options.Choices[k]
+		output = append(output, fmt.Sprintf("%s: | %v", k, o.Active))
+	}
+
+	if len(output) > 0 {
+		a.printColorln("Choice Options:\n")
+		fmt.Printf("%s\n\n", columnize.Format(output, config))
+	}
 }

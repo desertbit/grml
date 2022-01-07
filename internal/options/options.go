@@ -16,17 +16,46 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package spec
+package options
 
-//###############//
-//### Options ###//
-//###############//
+type Options struct {
+	Bools   map[string]bool
+	Choices map[string]*Choice
+}
 
-type CheckOptions map[string]bool
-
-type ChoiceOptions map[string]*ChoiceOption
-
-type ChoiceOption struct {
-	Set     string
+type Choice struct {
+	Active  string
 	Options []string
+}
+
+func New() *Options {
+	return &Options{
+		Bools:   make(map[string]bool),
+		Choices: make(map[string]*Choice),
+	}
+}
+
+func (o *Options) Restore(p *Options) {
+	// If the value exists in the previous options, then restore it.
+	for k, _ := range o.Bools {
+		if v, ok := p.Bools[k]; ok {
+			o.Bools[k] = v
+		}
+	}
+
+Loop:
+	for k, v := range o.Choices {
+		pv, ok := p.Choices[k]
+		if !ok {
+			continue
+		}
+
+		// Ensure the active value exists
+		for _, s := range v.Options {
+			if pv.Active == s {
+				v.Active = s
+				continue Loop
+			}
+		}
+	}
 }

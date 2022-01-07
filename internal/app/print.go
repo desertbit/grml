@@ -16,33 +16,31 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package app
 
 import (
-	"fmt"
-
 	"github.com/fatih/color"
 )
 
-func setNoColor(b bool) {
+func (a *app) setNoColor(b bool) {
 	color.NoColor = b
 }
 
-func printGRML() {
-	fmt.Println("               _ ")
-	fmt.Println(" ___ ___ _____| |")
-	fmt.Println("| . |  _|     | |")
-	fmt.Println("|_  |_| |_|_|_|_|")
-	fmt.Println("|___|            ")
-	fmt.Println("")
+func (a *app) printGRML() {
+	a.Println("               _ ")
+	a.Println(" ___ ___ _____| |")
+	a.Println("| . |  _|     | |")
+	a.Println("|_  |_| |_|_|_|_|")
+	a.Println("|___|            ")
+	a.Println("")
 }
 
-func printColor(s string) {
+func (a *app) printColor(s string) {
 	color.Set(color.FgYellow)
-	fmt.Print(s)
+	a.Print(s)
 	color.Unset()
 }
 
-func printColorln(s string) {
-	printColor(s + "\n")
+func (a *app) printColorln(s string) {
+	a.printColor(s + "\n")
 }

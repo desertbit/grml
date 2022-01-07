@@ -1,61 +1,78 @@
+version: 1
+project: sample
+
 env:
-    version:    1.0.0
-    buildDir:   build/
-    destBin:    app-${version}
+    VERSION:  1.0.0
+    DESTBIN:  sample-${VERSION}
+    BUILDDIR: ${ROOT}/build
+    BINDIR:   ${ROOT}/bin
 
 options:
-    debug:      false
-    hallo:      false
-    debugBackend:
-        - gui
-        - http
-    compiler:
-        - gcc
-        - llvm
+    debug: false
+    runopts:
+        - world
+        - mars
+
+interpreter: sh
+import:
+    - grml.sh
 
 commands:
-    app:
-        aliases: [ build ]
+    clean:
+        help: clean the build files
+        exec: |
+            rm -rf "${BUILDDIR}"
+
+    go:
+        help: go helpers
+        commands:
+            get:
+                help: get all go dependencies
+                exec: |
+                    go get -d ./...
+            update:
+                help: update all go dependencies
+                exec: |
+                    go get -u -d ./...
+            tidy:
+                help: cleanup the go.mod file
+                exec: |
+                    go mod tidy -v
+
+    build:
         help: build the app
         deps:
             - resources
-            - db
-            - app.test
         exec: |
-            echo "building app ${destBin}"
-            gb build all
-
+            go_build
         commands:
-            test:
-                help: test the app
+            run:
+                help: run the app after build
                 deps:
-                    - db
-                    - app.test.aa
-                exec: |
-                    echo "testing..."
+                    - build
+                    - run
 
-                commands:
-                    aa:
-                        help: test the app
-                        exec: |
-                            echo "aaa..."
+    run:
+        help: run the app
+        exec: |
+            "${BINDIR}/${DESTBIN}" "${runopts}"
 
     resources:
-        help:        build the resources
+        help: prepare the resources
         deps:
-            - images
+            - resources.images
         exec: |
-            mkdir -p ${buildDir}
-            touch ${buildDir}/resources
+            touch ${BUILDDIR}/resources
+        commands:
+            images:
+                help: prepare image resources
+                exec: |
+                    touch ${BUILDDIR}/images
 
-    images:
-        help:        build the image resources
+    deploy:
+        help: deploy the app
+        args:
+            - host
+            - user
         exec: |
-            mkdir -p ${buildDir}
-            touch ${buildDir}/images
-
-    db:
-        help: build the database files
-        exec: |
-            mkdir -p ${buildDir}
-            touch ${buildDir}/db
+            echo "deploying to '${host}' with user '${user}'"

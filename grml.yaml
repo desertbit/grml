@@ -1,0 +1,40 @@
+version: 1
+project: grml
+
+env:
+    VERSION: 1.0.0
+    BINDIR:  ${ROOT}/bin
+
+commands:
+    build:
+        help: build the prebuild binaries
+        deps:
+            - build.linux-amd64
+            - build.win-amd64
+        commands:
+            linux-amd64:
+                help: build for linux-amd64
+                exec: |
+                    mkdir -p "${BINDIR}"
+                    docker run \
+                        --rm \
+                        -v "$ROOT":/work \
+                        -w /work \
+                        -e CGO_ENABLED=0 \
+                        -e GOOS=linux \
+                        -e GOARCH=amd64 \
+                        golang:alpine \
+                            go build -o bin/grml-${VERSION}-lin-amd64 -ldflags="-s -w"
+            win-amd64:
+                help: build for win-amd64
+                exec: |
+                    mkdir -p "${BINDIR}"
+                    docker run \
+                        --rm \
+                        -v "$ROOT":/work \
+                        -w /work \
+                        -e CGO_ENABLED=0 \
+                        -e GOOS=windows \
+                        -e GOARCH=amd64 \
+                        golang:alpine \
+                            go build -o bin/grml-${VERSION}-win-amd64.exe -ldflags="-s -w"
