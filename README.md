@@ -9,6 +9,9 @@ A minimal sample can be found within the [sample](sample/grml.yaml) directory. E
 ### From Source
     go install github.com/desertbit/grml@latest
 
+### Prebuild Binaries
+https://github.com/desertbit/grml/releases
+
 ## Specification
 - Environment variables can be defined in the **env** section. These variables are passed to all run target processes.
 - Variables are also accessible with the `${}` selector within **help** messages and **import** statements.
