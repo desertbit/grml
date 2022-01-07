@@ -116,10 +116,15 @@ func (a *app) runShellCommand(cmdStr string, env []string) error {
 	}
 
 	// For now must be sh compatible.
-	shell := "sh"
-	if a.manifest.Interpreter == "bash" {
+	var shell string
+	switch a.manifest.Interpreter {
+	case "":
+		fallthrough
+	case "sh":
+		shell = "sh"
+	case "bash":
 		shell = "bash"
-	} else if a.manifest.Interpreter != "sh" {
+	default:
 		return fmt.Errorf("unknown interpreter: %s", a.manifest.Interpreter)
 	}
 
