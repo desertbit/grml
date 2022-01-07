@@ -5,6 +5,8 @@ This file uses the [YAML](http://yaml.org/) syntax.
 
 A minimal sample can be found within the [sample](sample/grml.yaml) directory. Enter the directory with a terminal and execute `grml`.
 
+[![asciicast](https://asciinema.org/a/I3AhdfrND2CtC4v0jODayQQKP.svg)](https://asciinema.org/a/I3AhdfrND2CtC4v0jODayQQKP)
+
 ## Installation
 ### From Source
     go install github.com/desertbit/grml@latest
