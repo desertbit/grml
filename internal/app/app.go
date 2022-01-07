@@ -219,14 +219,27 @@ func (a *app) reload() (err error) {
 
 func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.Commands) {
 	for _, c := range cs {
-		// TODO: Args.
-		localCmd := c // Catch the variable locally for run.
+		var (
+			localCmd = c // Catch the variable locally for run.
+		)
 		gc := &grumble.Command{
 			Name:    c.Name(),
 			Aliases: c.Alias(),
 			Help:    a.evalVar(c.Help()), // Help messages may contain variables.
+			Args: func(ga *grumble.Args) {
+				for _, arg := range localCmd.Args() {
+					ga.String(arg, "_")
+				}
+			},
 			Run: func(c *grumble.Context) error {
-				return a.exec(localCmd)
+				var args map[string]string
+				if localCmd.HasArgs() {
+					args = make(map[string]string)
+					for _, arg := range localCmd.Args() {
+						args[arg] = c.Args.String(arg)
+					}
+				}
+				return a.exec(localCmd, args)
 			},
 		}
 

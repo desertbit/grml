@@ -53,6 +53,13 @@ func (c *Command) Help() string {
 	return c.mc.Help
 }
 
+func (c *Command) HasArgs() bool {
+	return len(c.mc.Args) > 0
+}
+func (c *Command) Args() []string {
+	return c.mc.Args
+}
+
 func (c *Command) ExecString() string {
 	return c.mc.Exec
 }
@@ -115,6 +122,12 @@ func linkDeps(root, cmds Commands) (err error) {
 			if err != nil {
 				return fmt.Errorf("command '%s': invalid dependency value: %w", c.path, err)
 			}
+
+			// Ensure the depenceny has no arguments. Currently not supported.
+			if len(dep.mc.Args) > 0 {
+				return fmt.Errorf("command '%s': dependency command has args: currently unsupported", c.path)
+			}
+
 			c.deps = append(c.deps, dep)
 		}
 

@@ -13,6 +13,7 @@ options:
         - world
         - mars
 
+interpreter: sh
 import:
     - grml.sh
 
@@ -43,7 +44,7 @@ commands:
         deps:
             - resources
         exec: |
-            go build
+            go_build
         commands:
             run:
                 help: run the app after build
@@ -67,3 +68,11 @@ commands:
                 help: prepare image resources
                 exec: |
                     touch ${BUILDDIR}/images
+
+    deploy:
+        help: deploy the app
+        args:
+            - host
+            - user
+        exec: |
+            echo "deploying to '${host}' with user '${user}'"
