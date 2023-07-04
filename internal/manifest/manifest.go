@@ -29,8 +29,7 @@ import (
 )
 
 const (
-	Version              = 2
-	LastSupportedVersion = 1
+	Version = 2
 )
 
 type Manifest struct {
@@ -141,7 +140,7 @@ func Parse(path string) (m *Manifest, err error) {
 	}
 
 	// Validate.
-	if m.Version < LastSupportedVersion || m.Version > Version {
+	if m.Version != Version {
 		err = fmt.Errorf("incompatible grml version: file=%v current=%v", m.Version, Version)
 		return
 	} else if m.Project == "" {
