@@ -21,6 +21,7 @@ package manifest
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	"github.com/desertbit/grml/internal/options"
@@ -28,7 +29,8 @@ import (
 )
 
 const (
-	Version = 1
+	Version              = 2
+	LastSupportedVersion = 1
 )
 
 type Manifest struct {
@@ -50,6 +52,7 @@ type Command struct {
 	Args     []string `yaml:"args"`
 	Deps     []string `yaml:"deps"`
 	Exec     string   `yaml:"exec"`
+	Include  string   `yaml:"include"`
 	Commands Commands `yaml:"commands"`
 }
 
@@ -138,10 +141,45 @@ func Parse(path string) (m *Manifest, err error) {
 	}
 
 	// Validate.
-	if m.Version != Version {
+	if m.Version < LastSupportedVersion || m.Version > Version {
 		err = fmt.Errorf("incompatible grml version: file=%v current=%v", m.Version, Version)
+		return
 	} else if m.Project == "" {
 		err = fmt.Errorf("no project name set")
+		return
+	}
+
+	// Parse inlcudes.
+	rootPath := filepath.Dir(path)
+	err = parseIncludes(rootPath, m.Commands)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func parseIncludes(rootPath string, cmds Commands) (err error) {
+	for _, cmd := range cmds {
+		if cmd.Include == "" {
+			continue
+		}
+
+		var data []byte
+		data, err = ioutil.ReadFile(filepath.Join(rootPath, cmd.Include))
+		if err != nil {
+			return
+		}
+
+		err = yaml.UnmarshalStrict(data, cmd)
+		if err != nil {
+			return
+		}
+
+		err = parseIncludes(rootPath, cmd.Commands)
+		if err != nil {
+			return
+		}
 	}
 	return
 }

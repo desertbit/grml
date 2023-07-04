@@ -56,6 +56,7 @@ func (c *Command) Help() string {
 func (c *Command) HasArgs() bool {
 	return len(c.mc.Args) > 0
 }
+
 func (c *Command) Args() []string {
 	return c.mc.Args
 }
@@ -108,9 +109,7 @@ func addCommands(parentPath string, cmds *Commands, mcs manifest.Commands) {
 }
 
 func linkDeps(root, cmds Commands) (err error) {
-	var (
-		dep *Command
-	)
+	var dep *Command
 	for _, c := range cmds {
 		// Link dependencies for the command.
 		for _, d := range c.mc.Deps {
@@ -118,7 +117,7 @@ func linkDeps(root, cmds Commands) (err error) {
 				return fmt.Errorf("command '%s': empty dependency value", c.path)
 			}
 
-			dep, err = getCommandByPath(root, d)
+			dep, err = getCommandByPath(root, c.path, d)
 			if err != nil {
 				return fmt.Errorf("command '%s': invalid dependency value: %w", c.path, err)
 			}
@@ -140,7 +139,13 @@ func linkDeps(root, cmds Commands) (err error) {
 	return
 }
 
-func getCommandByPath(root Commands, path string) (*Command, error) {
+func getCommandByPath(root Commands, relPath, path string) (*Command, error) {
+	// If the path starts with a dot, then this is a relative path starting from this command.
+	// Prepend the relative path.
+	if strings.HasPrefix(path, ".") {
+		path = relPath + path
+	}
+
 	split := strings.Split(path, ".")
 	if len(split) == 0 {
 		return nil, fmt.Errorf("invalid command path value")
@@ -151,6 +156,7 @@ func getCommandByPath(root Commands, path string) (*Command, error) {
 		parent = root
 	)
 	for _, name := range split {
+		cur = nil
 		for _, c := range parent {
 			if c.name == name {
 				cur = c
