@@ -20,8 +20,9 @@ package manifest
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/desertbit/grml/internal/options"
@@ -63,6 +64,14 @@ func (cs Commands) Count() (n int) {
 	return
 }
 
+func isValidDirectory(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
 func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) {
 	// Prepare and evaluate the environment variables.
 	env = make(map[string]string)
@@ -91,6 +100,10 @@ func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) 
 func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 	o = options.New()
 	for name, i := range m.Options {
+		fmt.Println(name, i)
+
+		// Print type of i
+		fmt.Println(reflect.TypeOf(i))
 		switch v := i.(type) {
 		case bool:
 			if _, ok := o.Bools[name]; ok {
@@ -118,6 +131,28 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 				Options: list,
 			}
 
+		case string:
+			if !isValidDirectory(v) {
+				err = fmt.Errorf("invalid path: %v", v)
+				return
+			}
+
+			// Read the directory
+			entries, err := os.ReadDir(v)
+			if err != nil {
+				return nil, err
+			}
+
+			list := make([]string, len(entries))
+			for i, iv := range entries {
+				list[i] = fmt.Sprintf("%v", iv)
+			}
+
+			o.Choices[name] = &options.Choice{
+				Active:  list[0],
+				Options: list,
+			}
+
 		default:
 			err = fmt.Errorf("invalid option: %v: %v", name, i)
 			return
@@ -128,7 +163,7 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 
 // Parse a grml build file.
 func Parse(path string) (m *Manifest, err error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}
@@ -148,7 +183,7 @@ func Parse(path string) (m *Manifest, err error) {
 		return
 	}
 
-	// Parse inlcudes.
+	// Parse includes.
 	rootPath := filepath.Dir(path)
 	err = parseIncludes(rootPath, m.Commands)
 	if err != nil {
@@ -165,7 +200,7 @@ func parseIncludes(rootPath string, cmds Commands) (err error) {
 		}
 
 		var data []byte
-		data, err = ioutil.ReadFile(filepath.Join(rootPath, cmd.Include))
+		data, err = os.ReadFile(filepath.Join(rootPath, cmd.Include))
 		if err != nil {
 			return
 		}
