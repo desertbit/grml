@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/desertbit/grml/internal/options"
@@ -100,10 +99,6 @@ func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) 
 func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 	o = options.New()
 	for name, i := range m.Options {
-		fmt.Println(name, i)
-
-		// Print type of i
-		fmt.Println(reflect.TypeOf(i))
 		switch v := i.(type) {
 		case bool:
 			if _, ok := o.Bools[name]; ok {
