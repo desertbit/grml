@@ -120,9 +120,8 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 
 		case string:
 			entries, err := filepath.Glob(v)
-			if err != nil {
-				err = fmt.Errorf("failed to read directory: %v: %v", v, err)
-				return nil, err
+			if err != nil || len(entries) == 0 {
+				return nil, fmt.Errorf("failed reading path: %v: %v", name, v)
 			}
 
 			o.Choices[name] = &options.Choice{
