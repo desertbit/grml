@@ -63,14 +63,6 @@ func (cs Commands) Count() (n int) {
 	return
 }
 
-func isValidDirectory(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
 func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) {
 	// Prepare and evaluate the environment variables.
 	env = make(map[string]string)
@@ -127,25 +119,15 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 			}
 
 		case string:
-			if !isValidDirectory(v) {
-				err = fmt.Errorf("invalid path: %v", v)
-				return
-			}
-
-			// Read the directory
-			entries, err := os.ReadDir(v)
+			entries, err := filepath.Glob(v)
 			if err != nil {
+				err = fmt.Errorf("failed to read directory: %v: %v", v, err)
 				return nil, err
 			}
 
-			list := make([]string, len(entries))
-			for i, dirEntry := range entries {
-				list[i] = dirEntry.Name()
-			}
-
 			o.Choices[name] = &options.Choice{
-				Active:  list[0],
-				Options: list,
+				Active:  entries[0],
+				Options: entries,
 			}
 
 		default:
