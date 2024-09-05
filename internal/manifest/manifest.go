@@ -139,8 +139,8 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 			}
 
 			list := make([]string, len(entries))
-			for i, iv := range entries {
-				list[i] = fmt.Sprintf("%v", iv)
+			for i, dirEntry := range entries {
+				list[i] = dirEntry.Name()
 			}
 
 			o.Choices[name] = &options.Choice{

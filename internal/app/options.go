@@ -45,22 +45,72 @@ func (a *app) initOptions() {
 	cmd.AddCommand(&grumble.Command{
 		Name: "check",
 		Help: "select options",
+		Args: func(a *grumble.Args) {
+			a.String("option", "name of option", grumble.Default(""))
+		},
 		Run: func(c *grumble.Context) error {
-			l := len(a.options.Bools)
+
+			// Multiple args are provided.
+			if len(c.Args) > 1 {
+				return fmt.Errorf("invalid args: arg should be a path")
+			}
+			path := c.Args.String("option")
+
+			// No arg is provided.
+			if path == "" {
+				l := len(a.options.Bools)
+				if l == 0 {
+					return fmt.Errorf("no check options available")
+				}
+
+				options := make([]string, l)
+				var defaults []string
+
+				i := 0
+				for name, o := range a.options.Bools {
+					options[i] = name
+					if o {
+						defaults = append(defaults, name)
+					}
+					i++
+				}
+
+				var selected []string
+				prompt := &survey.MultiSelect{
+					Message: "Select Options:",
+					Options: options,
+					Default: defaults,
+				}
+				survey.AskOne(prompt, &selected, nil)
+
+			Loop:
+				for _, o := range options {
+					for _, s := range selected {
+						if s == o {
+							a.options.Bools[o] = true
+							continue Loop
+						}
+					}
+					a.options.Bools[o] = false
+				}
+				return nil
+			}
+
+			// Arg is provided but not a valid option.
+			val, ok := a.options.Choices[path]
+			if !ok {
+				return fmt.Errorf("invalid option: %v", path)
+			}
+
+			l := len(val.Options)
 			if l == 0 {
-				return fmt.Errorf("no check options available")
+				return fmt.Errorf("folder is empty")
 			}
 
 			options := make([]string, l)
-			var defaults []string
-
-			i := 0
-			for name, o := range a.options.Bools {
+			defaults := strings.Split(val.Active, ";")
+			for i, name := range a.options.Choices[path].Options {
 				options[i] = name
-				if o {
-					defaults = append(defaults, name)
-				}
-				i++
 			}
 
 			var selected []string
@@ -69,18 +119,9 @@ func (a *app) initOptions() {
 				Options: options,
 				Default: defaults,
 			}
-			survey.AskOne(prompt, &selected, nil)
 
-		Loop:
-			for _, o := range options {
-				for _, s := range selected {
-					if s == o {
-						a.options.Bools[o] = true
-						continue Loop
-					}
-				}
-				a.options.Bools[o] = false
-			}
+			survey.AskOne(prompt, &selected, nil)
+			val.Active = strings.Join(selected, ";")
 			return nil
 		},
 	})
@@ -138,7 +179,7 @@ func (a *app) printOptions() {
 	config.Prefix = "  "
 
 	// Print all check options sorted.
-	for k, _ := range a.options.Bools {
+	for k := range a.options.Bools {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -155,7 +196,7 @@ func (a *app) printOptions() {
 	// Print all choice options sorted.
 	output = nil
 	keys = nil
-	for k, _ := range a.options.Choices {
+	for k := range a.options.Choices {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

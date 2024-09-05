@@ -133,7 +133,12 @@ func (a *app) load() (err error) {
 			if err != nil {
 				return
 			}
-			a.Println("parsed grml file and reloaded successfully")
+
+			_, err = a.Println("parsed grml file and reloaded successfully")
+			if err != nil {
+				return err
+			}
+
 			a.printOptions()
 			return
 		},
