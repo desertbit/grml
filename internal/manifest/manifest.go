@@ -20,8 +20,9 @@ package manifest
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/desertbit/grml/internal/options"
@@ -118,6 +119,21 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 				Options: list,
 			}
 
+		case string:
+			entries, err := filepath.Glob(v)
+			if err != nil || len(entries) == 0 {
+				return nil, fmt.Errorf("failed reading path: %v: %v", name, v)
+			}
+
+			sort.Slice(entries, func(i, j int) bool {
+				return naturalLess(entries[i], entries[j])
+			})
+
+			o.Choices[name] = &options.Choice{
+				Active:  entries[0],
+				Options: entries,
+			}
+
 		default:
 			err = fmt.Errorf("invalid option: %v: %v", name, i)
 			return
@@ -128,7 +144,7 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 
 // Parse a grml build file.
 func Parse(path string) (m *Manifest, err error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}
@@ -148,7 +164,7 @@ func Parse(path string) (m *Manifest, err error) {
 		return
 	}
 
-	// Parse inlcudes.
+	// Parse includes.
 	rootPath := filepath.Dir(path)
 	err = parseIncludes(rootPath, m.Commands)
 	if err != nil {
@@ -165,7 +181,7 @@ func parseIncludes(rootPath string, cmds Commands) (err error) {
 		}
 
 		var data []byte
-		data, err = ioutil.ReadFile(filepath.Join(rootPath, cmd.Include))
+		data, err = os.ReadFile(filepath.Join(rootPath, cmd.Include))
 		if err != nil {
 			return
 		}
