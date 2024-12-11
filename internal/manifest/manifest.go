@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/desertbit/grml/internal/options"
@@ -123,6 +124,10 @@ func (m *Manifest) ParseOptions() (o *options.Options, err error) {
 			if err != nil || len(entries) == 0 {
 				return nil, fmt.Errorf("failed reading path: %v: %v", name, v)
 			}
+
+			sort.Slice(entries, func(i, j int) bool {
+				return naturalLess(entries[i], entries[j])
+			})
 
 			o.Choices[name] = &options.Choice{
 				Active:  entries[0],

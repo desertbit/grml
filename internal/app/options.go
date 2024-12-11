@@ -81,7 +81,10 @@ func (a *app) initOptions() {
 					Options: options,
 					Default: defaults,
 				}
-				survey.AskOne(prompt, &selected, nil)
+				err := survey.AskOne(prompt, &selected, nil)
+				if err != nil {
+					return err
+				}
 
 			Loop:
 				for _, o := range options {
@@ -120,7 +123,11 @@ func (a *app) initOptions() {
 				Default: defaults,
 			}
 
-			survey.AskOne(prompt, &selected, nil)
+			err := survey.AskOne(prompt, &selected, nil)
+			if err != nil {
+				return err
+			}
+
 			val.Active = strings.Join(selected, ";")
 			return nil
 		},
@@ -156,7 +163,11 @@ func (a *app) initOptions() {
 				Message: "Select Option:",
 				Options: o.Options,
 			}
-			survey.AskOne(prompt, &o.Active, nil)
+			err := survey.AskOne(prompt, &o.Active, nil)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		},
 	})
