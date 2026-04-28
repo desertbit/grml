@@ -59,6 +59,8 @@ An `include`d subgrml file can declare an `env:` block at its top. Those values 
 
 Implementation note: the `Env` field lives on `manifest.Command`, so technically *any* command (not just the include point) can carry `env:`, and scopes nest. The user-facing framing is per-include because that's the intended use case. The scope chain is built statically during cmd flattening (`cmd.addCommands` carries `parentEnvs []yaml.MapSlice`) and stored on each `cmd.Command` as `envs` — outermost first, command's own scope last. `app.cmdEnv(c)` layers this chain on top of `a.env` at use time via `manifest.EvalEnvSlice`. Scoping is by command location, not by call chain: when a dep crosses scope boundaries, each command runs with *its own* layered env. The root manifest's `env:` is merged into `a.env` directly since it applies universally.
 
+`LOCAL_ROOT` is auto-synthesized in `parseIncludes`: after unmarshalling each include, a `{Key: "LOCAL_ROOT", Value: "${ROOT}/<include-dir>"}` entry is *prepended* to the included file's `cmd.Env`. Prepending lets other entries in the same scope reference `${LOCAL_ROOT}`; if the user explicitly redefines `LOCAL_ROOT` later in their own env block, last-write-wins gives them precedence. Root commands have no synthesized `LOCAL_ROOT` — only `ROOT` is defined in the root scope.
+
 ### Per-include options
 
 `Command.Options` is a `map[string]interface{}` mirroring the root `Manifest.Options`. `Manifest.ParseOptions` returns `map[string]*options.Options` keyed by scope path (`""` for root, command path otherwise). Each scope has its own option namespace — names are unique only within a scope, so two subgrmls can both declare a `debug` option.

@@ -188,10 +188,24 @@ func parseIncludes(rootPath string, cmds Commands) (err error) {
 			return
 		}
 
+		includeDir := filepath.Dir(cmd.Include)
+
 		// Per-include 'import:' paths are written relative to the included
 		// file's directory. Rewrite them to be root-relative so the rest of
 		// the pipeline can treat all import paths uniformly.
-		rewriteImportPaths(cmd, filepath.Dir(cmd.Include))
+		rewriteImportPaths(cmd, includeDir)
+
+		// Synthesize a LOCAL_ROOT env var pointing to the included file's
+		// directory, prepended so other entries in the same scope can
+		// reference it. If the user explicitly redefines LOCAL_ROOT later
+		// in their own env block, their value wins (last write at evaluation).
+		var localRoot string
+		if includeDir == "" || includeDir == "." {
+			localRoot = "${ROOT}"
+		} else {
+			localRoot = "${ROOT}/" + includeDir
+		}
+		cmd.Env = append(yaml.MapSlice{{Key: "LOCAL_ROOT", Value: localRoot}}, cmd.Env...)
 
 		err = parseIncludes(rootPath, cmd.Commands)
 		if err != nil {

@@ -69,11 +69,12 @@ Without a target, `grml` drops into an interactive shell with tab completion. Bu
 
 The process environment is inherited and the following are always set:
 
-| Variable  | Value                                                        |
-|:----------|:-------------------------------------------------------------|
-| `ROOT`    | absolute path to the root directory containing the grml file |
-| `PROJECT` | project name from the manifest                               |
-| `NUMCPU`  | number of CPU cores                                          |
+| Variable     | Value                                                                                |
+|:-------------|:-------------------------------------------------------------------------------------|
+| `ROOT`       | absolute path to the root directory containing the grml file                         |
+| `PROJECT`    | project name from the manifest                                                       |
+| `NUMCPU`     | number of CPU cores                                                                  |
+| `LOCAL_ROOT` | absolute path to the directory of the current subgrml file — only set inside `include`d subtrees (in root commands, use `${ROOT}` instead) |
 
 Each option is also exported: bools as `true`/`false`, choices as the active value. Each `args` entry is exported when the command runs.
 
@@ -95,7 +96,7 @@ A `deps` entry is one of:
 
 ### Per-include env
 
-An `include`d subgrml file can declare its own `env:` block at the top. Those values layer on top of the root env (root values stay visible) and apply only to commands defined inside that file. Same-named root keys are overridden within the included file; commands outside it are unaffected.
+An `include`d subgrml file can declare its own `env:` block at the top. Those values layer on top of the root env (root values stay visible) and apply only to commands defined inside that file. Same-named root keys are overridden within the included file; commands outside it are unaffected. `LOCAL_ROOT` is auto-defined to the included file's directory, so a subgrml can refer to its own files via `${LOCAL_ROOT}/<file>` without hard-coding the path.
 
 ```yaml
 # commands/release.yaml — included from the root manifest as the 'release' command

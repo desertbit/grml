@@ -4,6 +4,9 @@
 env:
     DESTBIN: ${PROJECT}-${VERSION}-release
     RELEASE_NOTE: ${PROJECT} ${VERSION} release
+    # ${LOCAL_ROOT} is auto-defined for every subgrml as the absolute path
+    # to this file's directory — no need to define a RELEASE_ROOT manually.
+    NOTES_FILE: ${LOCAL_ROOT}/notes.txt
 
 # Per-include options have their own UI under this command. Manage from
 # the shell with:
@@ -45,4 +48,6 @@ commands:
                 echo "(dry-run) would publish ${BINDIR}/${DESTBIN} to ${channel}"
             else
                 echo "publishing ${BINDIR}/${DESTBIN} to ${channel}"
+                echo "--- notes (${NOTES_FILE}) ---"
+                cat "${NOTES_FILE}"
             fi
