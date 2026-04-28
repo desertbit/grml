@@ -48,7 +48,7 @@ type app struct {
 
 	env      map[string]string
 	manifest *manifest.Manifest
-	options  *options.Options
+	options  map[string]*options.Options // keyed by scope path; "" is root scope
 	commands cmd.Commands
 }
 
@@ -130,7 +130,7 @@ func (a *app) load() (err error) {
 				return
 			}
 			a.Println("parsed grml file and reloaded successfully")
-			a.printOptions()
+			a.printOptions("")
 			return
 		},
 	})
@@ -157,12 +157,15 @@ func (a *app) load() (err error) {
 		a.SetPrompt(fmt.Sprintf("grml %s » ", color.New(color.FgWhite, color.Faint).Sprint(a.manifest.Project)))
 	}
 
-	// Prepare options
+	// Prepare options (per-scope).
 	a.options, err = a.manifest.ParseOptions()
 	if err != nil {
-		return fmt.Errorf("failed to parse options")
+		return fmt.Errorf("failed to parse options: %v", err)
 	}
-	a.initOptions()
+	// Attach the root scope's options UI at the top level.
+	if _, ok := a.options[""]; ok {
+		a.attachOptions(a.AddCommand, "")
+	}
 
 	// Prepare the environment.
 	// Inherit the current process environment.
@@ -208,8 +211,13 @@ func (a *app) reload() (err error) {
 		return
 	}
 
-	// Restore as many options as possible.
-	a.options.Restore(oldOpts)
+	// Restore each scope's options independently. Scopes that no longer
+	// exist after the reload are silently dropped.
+	for sp, o := range a.options {
+		if old, ok := oldOpts[sp]; ok {
+			o.Restore(old)
+		}
+	}
 	return
 }
 
@@ -244,6 +252,12 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 			a.registerCommands(gc.AddCommand, c.SubCommands())
 		}
 
+		// If this command declared its own options scope, attach the options
+		// UI under it (e.g. 'labrat options check', 'labrat options set foo').
+		if _, ok := a.options[c.Path()]; ok {
+			a.attachOptions(gc.AddCommand, c.Path())
+		}
+
 		// Add this grumble command to the parent.
 		parentAddCmd(gc)
 	}
@@ -276,14 +290,45 @@ func (a *app) execEnv(c *cmd.Command) (env []string) {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Check options.
-	for k, o := range a.options.Bools {
-		env = append(env, fmt.Sprintf("%s=%v", k, o))
+	// Layer options across applicable scopes. Walk outermost (root) to
+	// innermost (c's path); inner scopes shadow outer for same-named options.
+	bools := make(map[string]bool)
+	choices := make(map[string]string)
+	for _, sp := range a.activeOptionScopes(c.Path()) {
+		opts := a.options[sp]
+		for k, o := range opts.Bools {
+			bools[k] = o.Value
+		}
+		for k, o := range opts.Choices {
+			choices[k] = o.Active
+		}
 	}
-
-	// Choice options.
-	for k, o := range a.options.Choices {
-		env = append(env, fmt.Sprintf("%s=%v", k, o.Active))
+	for k, v := range bools {
+		env = append(env, fmt.Sprintf("%s=%v", k, v))
+	}
+	for k, v := range choices {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 	return
+}
+
+// activeOptionScopes returns the scope paths that contribute options to a
+// command at cmdPath, ordered outermost (root) first to innermost (cmdPath).
+// Only scopes that actually have an Options entry are included.
+func (a *app) activeOptionScopes(cmdPath string) []string {
+	var scopes []string
+	if _, ok := a.options[""]; ok {
+		scopes = append(scopes, "")
+	}
+	if cmdPath == "" {
+		return scopes
+	}
+	parts := strings.Split(cmdPath, ".")
+	for i := 1; i <= len(parts); i++ {
+		sp := strings.Join(parts[:i], ".")
+		if _, ok := a.options[sp]; ok {
+			scopes = append(scopes, sp)
+		}
+	}
+	return scopes
 }

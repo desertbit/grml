@@ -58,6 +58,7 @@ Without a target, `grml` drops into an interactive shell with tab completion. Bu
 | `alias`    | list of alternative names                                                  |
 | `args`     | positional arguments, exposed as env vars of the same name                 |
 | `env`      | env vars for an included subgrml file, scoped to the commands in that file (see [Per-include env](#per-include-env)) |
+| `options`  | options for an included subgrml file, with their own `options check` / `options set` UI under that command (see [Per-include options](#per-include-options)) |
 | `import`   | shell files for an included subgrml file, sourced only when running commands in that file (see [Per-include imports](#per-include-imports)) |
 | `deps`     | other commands to run first; see [Dep paths](#dep-paths) for the syntax |
 | `exec`     | shell body to run                                                          |
@@ -109,6 +110,22 @@ commands:
         exec: |
             echo "publishing ${BINDIR}/${DESTBIN}"
 ```
+
+### Per-include options
+
+An `include`d subgrml file can declare its own `options:` block. Each subgrml's options live in their own namespace — two subgrmls can each have a `debug` option without colliding, and there's no need to prefix names manually.
+
+The interactive shell exposes a separate `options` UI under each subgrml's command:
+
+```
+grml » options                  # root manifest's options
+grml » labrat options           # labrat's options
+grml » labrat options check     # toggle labrat's bool options
+grml » labrat options set foo   # pick a value for labrat's choice option
+grml » closer options           # closer's options (independent of labrat's)
+```
+
+When running a command, the env vars exported are the merged options from every applicable scope: root first, then each ancestor scope down to the command's own scope. Inner scopes shadow outer scopes for same-named options, so a command inside `labrat` always sees its own `debug`, never the root one.
 
 ### Per-include imports
 

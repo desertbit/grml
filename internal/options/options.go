@@ -18,9 +18,19 @@
 
 package options
 
+import "fmt"
+
+// Options is a single scope's option set. Names are unique within an
+// Options instance but may collide across instances — each scope (root
+// manifest and each include point that declares 'options:') owns its own
+// Options, so two subgrmls can each have a 'debug' option without clashing.
 type Options struct {
-	Bools   map[string]bool
+	Bools   map[string]*Bool
 	Choices map[string]*Choice
+}
+
+type Bool struct {
+	Value bool
 }
 
 type Choice struct {
@@ -31,16 +41,52 @@ type Choice struct {
 
 func New() *Options {
 	return &Options{
-		Bools:   make(map[string]bool),
+		Bools:   make(map[string]*Bool),
 		Choices: make(map[string]*Choice),
 	}
 }
 
+// Add merges raw option entries (decoded from YAML) into o. Returns an error
+// if a name collides with an option already present in this scope.
+func (o *Options) Add(raw map[string]interface{}) error {
+	for name, i := range raw {
+		if _, exists := o.Bools[name]; exists {
+			return fmt.Errorf("duplicate option: %v", name)
+		}
+		if _, exists := o.Choices[name]; exists {
+			return fmt.Errorf("duplicate option: %v", name)
+		}
+
+		switch v := i.(type) {
+		case bool:
+			o.Bools[name] = &Bool{Value: v}
+
+		case []interface{}:
+			if len(v) == 0 {
+				return fmt.Errorf("invalid option: %v", name)
+			}
+			list := make([]string, len(v))
+			for j, iv := range v {
+				list[j] = fmt.Sprintf("%v", iv)
+			}
+			o.Choices[name] = &Choice{
+				Active:  list[0],
+				Options: list,
+			}
+
+		default:
+			return fmt.Errorf("invalid option: %v: %v", name, i)
+		}
+	}
+	return nil
+}
+
 func (o *Options) Restore(p *Options) {
-	// If the value exists in the previous options, then restore it.
-	for k, _ := range o.Bools {
-		if v, ok := p.Bools[k]; ok {
-			o.Bools[k] = v
+	// Carry forward bool values when the option still exists in the new
+	// configuration.
+	for k, v := range o.Bools {
+		if pv, ok := p.Bools[k]; ok {
+			v.Value = pv.Value
 		}
 	}
 

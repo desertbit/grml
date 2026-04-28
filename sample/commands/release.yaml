@@ -5,6 +5,20 @@ env:
     DESTBIN: ${PROJECT}-${VERSION}-release
     RELEASE_NOTE: ${PROJECT} ${VERSION} release
 
+# Per-include options have their own UI under this command. Manage from
+# the shell with:
+#   release options              -> show release scope's options
+#   release options check        -> toggle bool options (e.g. 'dryrun')
+#   release options set channel  -> pick a value for the choice option
+# Names live in this scope only — the root manifest's 'debug' is unrelated
+# and another subgrml could declare its own 'dryrun' without colliding.
+options:
+    dryrun: false
+    channel:
+        - stable
+        - beta
+        - nightly
+
 # Per-include imports are sourced only when running commands in this file.
 # Paths are relative to this file's directory, so 'release.sh' resolves
 # to <ROOT>/commands/release.sh.
@@ -27,4 +41,8 @@ commands:
             - ~.tag
         exec: |
             release_banner
-            echo "publishing ${BINDIR}/${DESTBIN}"
+            if grml_option dryrun; then
+                echo "(dry-run) would publish ${BINDIR}/${DESTBIN} to ${channel}"
+            else
+                echo "publishing ${BINDIR}/${DESTBIN} to ${channel}"
+            fi

@@ -46,15 +46,16 @@ type Manifest struct {
 type Commands map[string]*Command
 
 type Command struct {
-	Alias    []string      `yaml:"alias"`
-	Help     string        `yaml:"help"`
-	Args     []string      `yaml:"args"`
-	Env      yaml.MapSlice `yaml:"env"`    // Scoped to this command and its descendants.
-	Import   []string      `yaml:"import"` // Sourced before exec for this command and its descendants.
-	Deps     []string      `yaml:"deps"`
-	Exec     string        `yaml:"exec"`
-	Include  string        `yaml:"include"`
-	Commands Commands      `yaml:"commands"`
+	Alias    []string               `yaml:"alias"`
+	Help     string                 `yaml:"help"`
+	Args     []string               `yaml:"args"`
+	Env      yaml.MapSlice          `yaml:"env"`     // Scoped to this command and its descendants.
+	Options  map[string]interface{} `yaml:"options"` // Scoped to this command and its descendants.
+	Import   []string               `yaml:"import"`  // Sourced before exec for this command and its descendants.
+	Deps     []string               `yaml:"deps"`
+	Exec     string                 `yaml:"exec"`
+	Include  string                 `yaml:"include"`
+	Commands Commands               `yaml:"commands"`
 }
 
 func (cs Commands) Count() (n int) {
@@ -97,42 +98,45 @@ func EvalEnvSlice(scope yaml.MapSlice, parentEnv map[string]string) map[string]s
 	return env
 }
 
-func (m *Manifest) ParseOptions() (o *options.Options, err error) {
-	o = options.New()
-	for name, i := range m.Options {
-		switch v := i.(type) {
-		case bool:
-			if _, ok := o.Bools[name]; ok {
-				err = fmt.Errorf("duplicate option: %v", name)
-				return
-			}
-			o.Bools[name] = v
+// ParseOptions returns a per-scope option map. The empty key holds the
+// root manifest's options (visible everywhere); other keys are command
+// paths that declared their own 'options:' block. Each scope's option
+// names are independent — two subgrmls can both have a 'debug' option.
+func (m *Manifest) ParseOptions() (scopes map[string]*options.Options, err error) {
+	scopes = make(map[string]*options.Options)
 
-		case []interface{}:
-			if _, ok := o.Choices[name]; ok {
-				err = fmt.Errorf("duplicate option: %v", name)
-				return
-			} else if len(v) == 0 {
-				err = fmt.Errorf("invalid option: %v", name)
-				return
-			}
-
-			list := make([]string, len(v))
-			for i, iv := range v {
-				list[i] = fmt.Sprintf("%v", iv)
-			}
-
-			o.Choices[name] = &options.Choice{
-				Active:  list[0],
-				Options: list,
-			}
-
-		default:
-			err = fmt.Errorf("invalid option: %v: %v", name, i)
+	if len(m.Options) > 0 {
+		o := options.New()
+		if err = o.Add(m.Options); err != nil {
 			return
 		}
+		scopes[""] = o
 	}
+
+	err = collectCommandOptions("", m.Commands, scopes)
 	return
+}
+
+func collectCommandOptions(parentPath string, mcs Commands, scopes map[string]*options.Options) error {
+	for name, mc := range mcs {
+		var path string
+		if parentPath == "" {
+			path = name
+		} else {
+			path = parentPath + "." + name
+		}
+		if len(mc.Options) > 0 {
+			o := options.New()
+			if err := o.Add(mc.Options); err != nil {
+				return fmt.Errorf("command '%s': %v", path, err)
+			}
+			scopes[path] = o
+		}
+		if err := collectCommandOptions(path, mc.Commands, scopes); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Parse a grml build file.

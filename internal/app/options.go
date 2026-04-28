@@ -28,73 +28,41 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 )
 
-// TODO: better option command. maybe a single option command to set all options at once in a tui like menu?
-
-func (a *app) initOptions() {
-	// Options Command.
+// attachOptions registers the 'options', 'options check', 'options set'
+// builtins under addCmd, operating on the option scope at scopePath.
+// Pass scopePath "" for the root scope (registered at the top level);
+// pass a command path to attach the UI under that command's grumble subtree.
+func (a *app) attachOptions(addCmd func(cmd *grumble.Command), scopePath string) {
 	cmd := &grumble.Command{
 		Name: "options",
 		Help: "print & handle options",
 		Run: func(c *grumble.Context) error {
-			a.printOptions()
+			a.printOptions(scopePath)
 			return nil
 		},
 	}
 
-	// Check command.
 	cmd.AddCommand(&grumble.Command{
 		Name: "check",
 		Help: "select options",
 		Run: func(c *grumble.Context) error {
-			l := len(a.options.Bools)
-			if l == 0 {
-				return fmt.Errorf("no check options available")
-			}
-
-			options := make([]string, l)
-			var defaults []string
-
-			i := 0
-			for name, o := range a.options.Bools {
-				options[i] = name
-				if o {
-					defaults = append(defaults, name)
-				}
-				i++
-			}
-
-			var selected []string
-			prompt := &survey.MultiSelect{
-				Message: "Select Options:",
-				Options: options,
-				Default: defaults,
-			}
-			survey.AskOne(prompt, &selected, nil)
-
-		Loop:
-			for _, o := range options {
-				for _, s := range selected {
-					if s == o {
-						a.options.Bools[o] = true
-						continue Loop
-					}
-				}
-				a.options.Bools[o] = false
-			}
-			return nil
+			return a.optionsCheck(scopePath)
 		},
 	})
 
-	// Set command.
 	cmd.AddCommand(&grumble.Command{
 		Name: "set",
 		Help: "set a specific choice option",
-		Args: func(a *grumble.Args) {
-			a.String("option", "name of option")
+		Args: func(args *grumble.Args) {
+			args.String("option", "name of option")
 		},
 		Completer: func(prefix string, args []string) []string {
+			opts := a.options[scopePath]
+			if opts == nil {
+				return nil
+			}
 			var words []string
-			for name := range a.options.Choices {
+			for name := range opts.Choices {
 				if strings.HasPrefix(name, prefix) {
 					words = append(words, name)
 				}
@@ -102,69 +70,108 @@ func (a *app) initOptions() {
 			return words
 		},
 		Run: func(c *grumble.Context) error {
-			if len(c.Args) != 1 {
-				return fmt.Errorf("invalid args: one choice option required")
-			}
-
-			o := a.options.Choices[c.Args.String("option")]
-			if o == nil {
-				return fmt.Errorf("invalid choice option: does not exists")
-			}
-
-			prompt := &survey.Select{
-				Message: "Select Option:",
-				Options: o.Options,
-			}
-			survey.AskOne(prompt, &o.Active, nil)
-			o.UserSet = true
-			return nil
+			return a.optionsSet(scopePath, c.Args.String("option"))
 		},
 	})
 
-	a.AddCommand(cmd)
+	addCmd(cmd)
 }
 
-func (a *app) printOptions() {
+func (a *app) optionsCheck(scopePath string) error {
+	opts := a.options[scopePath]
+	if opts == nil || len(opts.Bools) == 0 {
+		return fmt.Errorf("no check options available")
+	}
+
+	names := make([]string, 0, len(opts.Bools))
+	var defaults []string
+	for name, o := range opts.Bools {
+		names = append(names, name)
+		if o.Value {
+			defaults = append(defaults, name)
+		}
+	}
+
+	var selected []string
+	prompt := &survey.MultiSelect{
+		Message: "Select Options:",
+		Options: names,
+		Default: defaults,
+	}
+	survey.AskOne(prompt, &selected, nil)
+
+Loop:
+	for _, name := range names {
+		for _, s := range selected {
+			if s == name {
+				opts.Bools[name].Value = true
+				continue Loop
+			}
+		}
+		opts.Bools[name].Value = false
+	}
+	return nil
+}
+
+func (a *app) optionsSet(scopePath, name string) error {
+	opts := a.options[scopePath]
+	if opts == nil {
+		return fmt.Errorf("no options in scope")
+	}
+	o := opts.Choices[name]
+	if o == nil {
+		return fmt.Errorf("invalid choice option: does not exist")
+	}
+
+	prompt := &survey.Select{
+		Message: "Select Option:",
+		Options: o.Options,
+	}
+	survey.AskOne(prompt, &o.Active, nil)
+	o.UserSet = true
+	return nil
+}
+
+func (a *app) printOptions(scopePath string) {
+	opts := a.options[scopePath]
+	if opts == nil {
+		return
+	}
+
 	fmt.Println()
 
-	var (
-		output []string
-		keys   []string
-	)
-
-	// Columnize options.
 	config := columnize.DefaultConfig()
 	config.Delim = "|"
 	config.Glue = "  "
 	config.Prefix = "  "
 
-	// Print all check options sorted.
-	for k, _ := range a.options.Bools {
+	// Bool options sorted by name.
+	var (
+		output []string
+		keys   []string
+	)
+	for k := range opts.Bools {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		v := a.options.Bools[k]
-		output = append(output, fmt.Sprintf("%s: | %v", k, v))
-
+		output = append(output, fmt.Sprintf("%s: | %v", k, opts.Bools[k].Value))
 	}
 	if len(output) > 0 {
 		a.printColorln("Check Options:\n")
 		fmt.Printf("%s\n\n", columnize.Format(output, config))
 	}
 
-	// Print all choice options sorted.
+	// Choice options sorted by name.
 	output = nil
 	keys = nil
-	for k, _ := range a.options.Choices {
+	for k := range opts.Choices {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		o := a.options.Choices[k]
-		output = append(output, fmt.Sprintf("%s: | %v", k, o.Active))
+		output = append(output, fmt.Sprintf("%s: | %v", k, opts.Choices[k].Active))
 	}
-
 	if len(output) > 0 {
 		a.printColorln("Choice Options:\n")
 		fmt.Printf("%s\n\n", columnize.Format(output, config))
