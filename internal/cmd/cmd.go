@@ -29,13 +29,14 @@ import (
 type Commands []*Command
 
 type Command struct {
-	name   string
-	path   string
-	origin string // path of the nearest enclosing 'include' point; "" for root-level commands
-	mc     *manifest.Command
-	envs   []yaml.MapSlice // ordered scope chain from outermost ancestor to self
-	cmds   Commands
-	deps   Commands
+	name    string
+	path    string
+	origin  string // path of the nearest enclosing 'include' point; "" for root-level commands
+	mc      *manifest.Command
+	envs    []yaml.MapSlice // ordered scope chain from outermost ancestor to self
+	imports []string        // ordered: ancestors' imports first, command's own last
+	cmds    Commands
+	deps    Commands
 }
 
 // Name returns the command's name.
@@ -87,18 +88,24 @@ func (c *Command) Envs() []yaml.MapSlice {
 	return c.envs
 }
 
+// Imports returns the ordered list of per-include import paths (root-relative)
+// that apply to this command, ancestors first, command's own last.
+func (c *Command) Imports() []string {
+	return c.imports
+}
+
 func ParseManifest(m *manifest.Manifest) (cmds Commands, err error) {
 	cmds = make(Commands, 0, m.Commands.Count())
 
 	// Add the commands from the manifest.
-	addCommands("", "", nil, &cmds, m.Commands)
+	addCommands("", "", nil, nil, &cmds, m.Commands)
 
 	// Link the dependencies now.
 	err = linkDeps(cmds, cmds)
 	return
 }
 
-func addCommands(parentPath, parentOrigin string, parentEnvs []yaml.MapSlice, cmds *Commands, mcs manifest.Commands) {
+func addCommands(parentPath, parentOrigin string, parentEnvs []yaml.MapSlice, parentImports []string, cmds *Commands, mcs manifest.Commands) {
 	for name, mc := range mcs {
 		// Extend the parent's scope chain when this command declares its own env.
 		envs := parentEnvs
@@ -106,6 +113,14 @@ func addCommands(parentPath, parentOrigin string, parentEnvs []yaml.MapSlice, cm
 			envs = make([]yaml.MapSlice, 0, len(parentEnvs)+1)
 			envs = append(envs, parentEnvs...)
 			envs = append(envs, mc.Env)
+		}
+
+		// Extend the parent's import chain when this command declares its own imports.
+		imports := parentImports
+		if len(mc.Import) > 0 {
+			imports = make([]string, 0, len(parentImports)+len(mc.Import))
+			imports = append(imports, parentImports...)
+			imports = append(imports, mc.Import...)
 		}
 
 		var path string
@@ -123,17 +138,18 @@ func addCommands(parentPath, parentOrigin string, parentEnvs []yaml.MapSlice, cm
 		}
 
 		c := &Command{
-			name:   name,
-			path:   path,
-			origin: origin,
-			mc:     mc,
-			envs:   envs,
-			cmds:   make(Commands, 0, mc.Commands.Count()),
+			name:    name,
+			path:    path,
+			origin:  origin,
+			mc:      mc,
+			envs:    envs,
+			imports: imports,
+			cmds:    make(Commands, 0, mc.Commands.Count()),
 		}
 		*cmds = append(*cmds, c)
 
 		// Add sub commands.
-		addCommands(path, origin, envs, &c.cmds, mc.Commands)
+		addCommands(path, origin, envs, imports, &c.cmds, mc.Commands)
 	}
 }
 

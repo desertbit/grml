@@ -59,6 +59,10 @@ An `include`d subgrml file can declare an `env:` block at its top. Those values 
 
 Implementation note: the `Env` field lives on `manifest.Command`, so technically *any* command (not just the include point) can carry `env:`, and scopes nest. The user-facing framing is per-include because that's the intended use case. The scope chain is built statically during cmd flattening (`cmd.addCommands` carries `parentEnvs []yaml.MapSlice`) and stored on each `cmd.Command` as `envs` — outermost first, command's own scope last. `app.cmdEnv(c)` layers this chain on top of `a.env` at use time via `manifest.EvalEnvSlice`. Scoping is by command location, not by call chain: when a dep crosses scope boundaries, each command runs with *its own* layered env. The root manifest's `env:` is merged into `a.env` directly since it applies universally.
 
+### Per-include imports
+
+Same scoping idea for `import:`. A subgrml file can list shell scripts to source; they apply only to that file's command subtree. Paths in YAML are written relative to the included file's directory; `manifest.parseIncludes` rewrites them to root-relative via `rewriteImportPaths`, so downstream code sees a uniform `${ROOT}/<path>` resolution. The chain (`cmd.Command.imports`) is propagated like `envs` during `cmd.addCommands` — ancestors first, self last. At exec time `runShellCommand` sources `a.manifest.Import` (root-level) followed by `c.Imports()`. Last-sourced wins for function/variable definitions.
+
 ### Built-in commands added at load
 
 `reload`, `verbose <bool>`, `options`, `options check`, `options set <name>` are injected by `app.load()` and `initOptions()`; they're grouped under "Builtins:" in help. User commands from the manifest live in the default group.

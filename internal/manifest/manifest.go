@@ -49,7 +49,8 @@ type Command struct {
 	Alias    []string      `yaml:"alias"`
 	Help     string        `yaml:"help"`
 	Args     []string      `yaml:"args"`
-	Env      yaml.MapSlice `yaml:"env"` // Scoped to this command and its descendants.
+	Env      yaml.MapSlice `yaml:"env"`    // Scoped to this command and its descendants.
+	Import   []string      `yaml:"import"` // Sourced before exec for this command and its descendants.
 	Deps     []string      `yaml:"deps"`
 	Exec     string        `yaml:"exec"`
 	Include  string        `yaml:"include"`
@@ -183,10 +184,33 @@ func parseIncludes(rootPath string, cmds Commands) (err error) {
 			return
 		}
 
+		// Per-include 'import:' paths are written relative to the included
+		// file's directory. Rewrite them to be root-relative so the rest of
+		// the pipeline can treat all import paths uniformly.
+		rewriteImportPaths(cmd, filepath.Dir(cmd.Include))
+
 		err = parseIncludes(rootPath, cmd.Commands)
 		if err != nil {
 			return
 		}
 	}
 	return
+}
+
+// rewriteImportPaths makes every 'import:' path in cmd's subtree
+// root-relative, prefixing dir to non-absolute entries. Stops at nested
+// include points (those receive their own dir treatment when parsed).
+func rewriteImportPaths(cmd *Command, dir string) {
+	if dir != "" && dir != "." {
+		for i, s := range cmd.Import {
+			if !filepath.IsAbs(s) {
+				cmd.Import[i] = filepath.Join(dir, s)
+			}
+		}
+	}
+	for _, child := range cmd.Commands {
+		if child.Include == "" {
+			rewriteImportPaths(child, dir)
+		}
+	}
 }

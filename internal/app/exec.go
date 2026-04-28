@@ -87,8 +87,12 @@ func (a *app) execCommand(ctx *execContext, c *cmd.Command, args map[string]stri
 	}
 	env = append(env, a.execEnv(c)...) // Add args always first.
 
+	// Combine root manifest imports with the command's per-include imports.
+	imports := append([]string{}, a.manifest.Import...)
+	imports = append(imports, c.Imports()...)
+
 	// Go go go.
-	err = a.runShellCommand(c.ExecString(), env)
+	err = a.runShellCommand(c.ExecString(), env, imports)
 	if err != nil {
 		return
 	}
@@ -98,7 +102,7 @@ func (a *app) execCommand(ctx *execContext, c *cmd.Command, args map[string]stri
 	return
 }
 
-func (a *app) runShellCommand(cmdStr string, env []string) error {
+func (a *app) runShellCommand(cmdStr string, env []string, imports []string) error {
 	if len(cmdStr) == 0 {
 		return nil
 	}
@@ -116,9 +120,10 @@ func (a *app) runShellCommand(cmdStr string, env []string) error {
 		prefix.WriteString("set -x\n")
 	}
 
-	// Source local project scripts if defined. Imports are root-level,
-	// so they only see the root env (not per-command scopes).
-	for _, s := range a.manifest.Import {
+	// Source imports — paths are root-relative; ${ROOT} interpolation uses
+	// root env. The shell process already has the per-command (scoped) env
+	// in its environment, so imports see all relevant variables when sourced.
+	for _, s := range imports {
 		prefix.WriteString(a.evalVar(a.env, ". \"${ROOT}/"+s+"\""))
 		prefix.WriteString("\n")
 	}

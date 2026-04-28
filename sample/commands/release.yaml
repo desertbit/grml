@@ -5,9 +5,15 @@ env:
     DESTBIN: ${PROJECT}-${VERSION}-release
     RELEASE_NOTE: ${PROJECT} ${VERSION} release
 
+# Per-include imports are sourced only when running commands in this file.
+# Paths are relative to this file's directory, so 'release.sh' resolves
+# to <ROOT>/commands/release.sh.
+import:
+    - release.sh
+
 help: cut a ${VERSION} release
 exec: |
-    echo "${RELEASE_NOTE}"
+    release_banner
 commands:
     tag:
         help: tag the git release
@@ -20,4 +26,5 @@ commands:
             # does not need to know how the root manifest names it.
             - ~.tag
         exec: |
+            release_banner
             echo "publishing ${BINDIR}/${DESTBIN}"

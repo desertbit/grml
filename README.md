@@ -58,6 +58,7 @@ Without a target, `grml` drops into an interactive shell with tab completion. Bu
 | `alias`    | list of alternative names                                                  |
 | `args`     | positional arguments, exposed as env vars of the same name                 |
 | `env`      | env vars for an included subgrml file, scoped to the commands in that file (see [Per-include env](#per-include-env)) |
+| `import`   | shell files for an included subgrml file, sourced only when running commands in that file (see [Per-include imports](#per-include-imports)) |
 | `deps`     | other commands to run first; see [Dep paths](#dep-paths) for the syntax |
 | `exec`     | shell body to run                                                          |
 | `commands` | nested sub-commands                                                        |
@@ -109,14 +110,28 @@ commands:
             echo "publishing ${BINDIR}/${DESTBIN}"
 ```
 
+### Per-include imports
+
+An `include`d subgrml file can declare its own `import:` block, parallel to the root manifest's `import:`. Listed scripts are sourced **only** when running commands defined inside that file (and any descendants), and they run **after** the env is in place — so top-level statements in the script can use the per-include env.
+
+Paths are written relative to the included file's own directory, so a self-contained subgrml can ship its helpers alongside its YAML:
+
+```
+commands/
+  release.yaml      # subgrml: import: [release.sh]
+  release.sh        # sourced only when running release.* commands
+```
+
+Sourcing order for any given command: root manifest's `import:` first, then per-include `import:` from outermost ancestor down to the command's own scope. Last-sourced wins for function/variable definitions.
+
 ### Shell builtins
 
 `grml` injects helpers under the `grml_*` namespace into every `exec` body and `import` script. They work under both `sh` and `bash`.
 
 | Helper                       | Description                                                          |
 |:-----------------------------|:---------------------------------------------------------------------|
-| `grml_option <name>`         | exit 0 iff the named option/env var equals `true` (bool option check) |
-| `grml_option <name> <value>` | exit 0 iff the named option/env var equals `<value>` (choice check)   |
+| `grml_option <name>`         | exit 0 if the named option/env var equals `true` (bool option check) |
+| `grml_option <name> <value>` | exit 0 if the named option/env var equals `<value>` (choice check)   |
 
 Example:
 
