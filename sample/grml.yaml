@@ -86,8 +86,18 @@ commands:
         exec: |
             "${BINDIR}/${DESTBIN}" "${runopts}"
 
-    # 'args' declares positional arguments. Each is passed to exec
-    # as an env var of the same name.
+    # 'args' declares positional arguments. Each is passed to exec as an env
+    # var of the same name. In the interactive shell, args tab-complete as
+    # filesystem paths relative to the command's runtime cwd (root for root
+    # commands, ${LOCAL_ROOT} for subgrml commands).
+    inspect:
+        help: print any project file (tab-complete the path)
+        args:
+            - file
+        exec: |
+            echo "--- ${file} ---"
+            cat "${file}"
+
     deploy:
         help: deploy ${DESTBIN} over ssh
         args:

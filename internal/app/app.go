@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -226,6 +227,14 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 		var (
 			localCmd = c // Catch the variable locally for run.
 		)
+		// Pre-compute the completion base so each tab keystroke doesn't re-walk
+		// the env scope chain. For subgrml commands this is ${LOCAL_ROOT}; for
+		// root commands it's the project root — matching the runtime cwd.
+		completeBase := a.rootPath
+		if lr := a.cmdEnv(c)["LOCAL_ROOT"]; lr != "" {
+			completeBase = lr
+		}
+
 		gc := &grumble.Command{
 			Name:    c.Name(),
 			Aliases: c.Alias(),
@@ -234,6 +243,12 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 				for _, arg := range localCmd.Args() {
 					ga.String(arg, "_")
 				}
+			},
+			Completer: func(prefix string, args []string) []string {
+				if !localCmd.HasArgs() || len(args) >= len(localCmd.Args()) {
+					return nil
+				}
+				return completePath(prefix, completeBase)
 			},
 			Run: func(c *grumble.Context) error {
 				var args map[string]string
@@ -261,6 +276,48 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 		// Add this grumble command to the parent.
 		parentAddCmd(gc)
 	}
+}
+
+// completePath returns filesystem completion candidates for prefix, resolved
+// against base when prefix is relative. Directories get a trailing '/'. Hidden
+// entries are only listed when the user explicitly typed a leading dot.
+func completePath(prefix, base string) []string {
+	dir, file := filepath.Split(prefix)
+
+	var searchDir string
+	if filepath.IsAbs(prefix) {
+		searchDir = dir
+		if searchDir == "" {
+			searchDir = "/"
+		}
+	} else {
+		searchDir = filepath.Join(base, dir)
+	}
+
+	entries, err := os.ReadDir(searchDir)
+	if err != nil {
+		return nil
+	}
+
+	showHidden := strings.HasPrefix(file, ".")
+
+	var matches []string
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, file) {
+			continue
+		}
+		if !showHidden && strings.HasPrefix(name, ".") {
+			continue
+		}
+		full := dir + name
+		if e.IsDir() {
+			full += "/"
+		}
+		matches = append(matches, full)
+	}
+	sort.Strings(matches)
+	return matches
 }
 
 // evalVar interpolates ${VAR} references in str using the provided env map.
