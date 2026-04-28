@@ -26,6 +26,7 @@ type Options struct {
 type Choice struct {
 	Active  string
 	Options []string
+	UserSet bool // true once the user explicitly picked via 'options set'
 }
 
 func New() *Options {
@@ -46,7 +47,10 @@ func (o *Options) Restore(p *Options) {
 Loop:
 	for k, v := range o.Choices {
 		pv, ok := p.Choices[k]
-		if !ok {
+		// Skip if the user never explicitly picked: let the new YAML default
+		// (the first item) win, otherwise prepending a new option to the
+		// list in the file would have no visible effect after reload.
+		if !ok || !pv.UserSet {
 			continue
 		}
 
@@ -54,6 +58,7 @@ Loop:
 		for _, s := range v.Options {
 			if pv.Active == s {
 				v.Active = s
+				v.UserSet = true
 				continue Loop
 			}
 		}

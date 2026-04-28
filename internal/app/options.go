@@ -116,6 +116,7 @@ func (a *app) initOptions() {
 				Options: o.Options,
 			}
 			survey.AskOne(prompt, &o.Active, nil)
+			o.UserSet = true
 			return nil
 		},
 	})
