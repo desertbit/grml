@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	manifestFilename = "grml.yaml"
+	defaultManifestFilename = "grml.yaml"
 )
 
 type app struct {
@@ -65,7 +65,8 @@ func Run() {
 			HelpSubCommands:       true,
 
 			Flags: func(f *grumble.Flags) {
-				f.String("d", "directory", "", "set an alternative root directory path")
+				f.String("d", "directory", ".", "set the root directory path")
+				f.String("f", "file", defaultManifestFilename, "set an alternative grml file (relative to the root directory)")
 				f.Bool("v", "verbose", false, "enable verbose execution mode")
 			},
 		}),
@@ -98,20 +99,15 @@ func Run() {
 		a.rootPath = flags.String("directory")
 		a.setNoColor(gapp.Config().NoColor)
 
-		// Set the initial root path to the current working dir if not set through flags.
-		if len(a.rootPath) == 0 {
-			a.rootPath, err = os.Getwd()
-			if err != nil {
-				return fmt.Errorf("failed to obtain the current working directory: %v", err)
-			}
-		}
-
 		// Get the absolute path.
 		a.rootPath, err = filepath.Abs(a.rootPath)
 		if err != nil {
 			return err
 		}
-		a.manifestPath = filepath.Join(a.rootPath, manifestFilename)
+
+		// Resolve the manifest file path. Absolute paths are taken as-is;
+		// relative paths are resolved against the root directory.
+		a.manifestPath = filepath.Join(a.rootPath, flags.String("file"))
 
 		// Load the manifest.
 		return a.load()
