@@ -67,6 +67,7 @@ func (a *app) attachOptions(addCmd func(cmd *grumble.Command), scopePath string)
 					words = append(words, name)
 				}
 			}
+			sort.Strings(words)
 			return words
 		},
 		Run: func(c *grumble.Context) error {
@@ -91,6 +92,7 @@ func (a *app) optionsCheck(scopePath string) error {
 			defaults = append(defaults, name)
 		}
 	}
+	sort.Strings(names)
 
 	var selected []string
 	prompt := &survey.MultiSelect{
