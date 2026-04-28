@@ -1,13 +1,15 @@
-#!/bin/sh
+#!/bin/bash
 
-# Ensure directories always exists.
+# Sourced before every exec body via the manifest's 'import:' list.
+# Set up shared directories and helper functions here.
+
 mkdir -p "${BUILDDIR}" "${BINDIR}"
 
 go_build() {
-    local opts
+    local opts=()
     if [ "$debug" = true ]; then
-        opts+="-gcflags=\"all=-N -l\""
+        opts+=(-gcflags="all=-N -l")
     fi
-   
-    go build $opts -o "${BINDIR}/${DESTBIN}"
+
+    go build "${opts[@]}" -o "${BINDIR}/${DESTBIN}"
 }

@@ -1,0 +1,14 @@
+help: cut a ${VERSION} release
+exec: |
+    echo "releasing ${DESTBIN}"
+commands:
+    tag:
+        help: tag the git release
+        exec: |
+            echo "git tag -a v${VERSION}"
+    publish:
+        help: publish ${DESTBIN} artifacts
+        deps:
+            - release.tag
+        exec: |
+            echo "publishing ${BINDIR}/${DESTBIN}"
