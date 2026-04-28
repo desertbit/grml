@@ -97,6 +97,11 @@ commands:
         exec: |
             echo "--- ${file} ---"
             cat "${file}"
+        commands:
+            test:
+                help: test a subcommand, while the parent has an arg (auto-completion still works)
+                exec: |
+                    echo "hello there"
 
     deploy:
         help: deploy ${DESTBIN} over ssh

@@ -227,14 +227,6 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 		var (
 			localCmd = c // Catch the variable locally for run.
 		)
-		// Pre-compute the completion base so each tab keystroke doesn't re-walk
-		// the env scope chain. For subgrml commands this is ${LOCAL_ROOT}; for
-		// root commands it's the project root — matching the runtime cwd.
-		completeBase := a.rootPath
-		if lr := a.cmdEnv(c)["LOCAL_ROOT"]; lr != "" {
-			completeBase = lr
-		}
-
 		gc := &grumble.Command{
 			Name:    c.Name(),
 			Aliases: c.Alias(),
@@ -243,12 +235,6 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 				for _, arg := range localCmd.Args() {
 					ga.String(arg, "_")
 				}
-			},
-			Completer: func(prefix string, args []string) []string {
-				if !localCmd.HasArgs() || len(args) >= len(localCmd.Args()) {
-					return nil
-				}
-				return completePath(prefix, completeBase)
 			},
 			Run: func(c *grumble.Context) error {
 				var args map[string]string
@@ -260,6 +246,46 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 				}
 				return a.exec(localCmd, args)
 			},
+		}
+
+		// Attach filesystem-path completion only to commands that actually
+		// declare args. For arg-less commands (especially those with sub
+		// commands like 'release'), leaving Completer nil lets grumble fall
+		// back to its default sub-command-name suggestion.
+		if localCmd.HasArgs() {
+			// Pre-compute the completion base so each tab keystroke doesn't
+			// re-walk the env scope chain. For subgrml commands this is
+			// ${LOCAL_ROOT}; for root commands it's the project root —
+			// matching the runtime cwd.
+			completeBase := a.rootPath
+			if lr := a.cmdEnv(c)["LOCAL_ROOT"]; lr != "" {
+				completeBase = lr
+			}
+			gc.Completer = func(prefix string, args []string) []string {
+				if len(args) >= len(localCmd.Args()) {
+					return nil
+				}
+				matches := completePath(prefix, completeBase)
+				// At the first token position, sub-command names are also
+				// valid candidates here — include them so Tab discovers
+				// everything that's legal at this position. Sub-commands
+				// only matter for the first token; once the user types past
+				// it, we're committed to the args branch.
+				if len(args) == 0 && localCmd.HasSubCommands() {
+					seen := make(map[string]bool, len(matches))
+					for _, m := range matches {
+						seen[m] = true
+					}
+					for _, sub := range localCmd.SubCommands() {
+						n := sub.Name()
+						if strings.HasPrefix(n, prefix) && !seen[n] {
+							matches = append(matches, n)
+						}
+					}
+					sort.Strings(matches)
+				}
+				return matches
+			}
 		}
 
 		// Add sub commands to this grumble command.
