@@ -4,10 +4,10 @@ project: sample
 # Environment variables. ${VAR} expands from previously declared
 # entries and the implicit ROOT, PROJECT, NUMCPU.
 env:
-    VERSION:  1.0.0
-    DESTBIN:  ${PROJECT}-${VERSION}
+    VERSION: 1.0.0
+    DESTBIN: ${PROJECT}-${VERSION}
     BUILDDIR: ${ROOT}/build
-    BINDIR:   ${ROOT}/bin
+    BINDIR: ${ROOT}/bin
 
 # User-tweakable options. Bools become check options, lists become
 # single-choice options. Each is exposed as an env var inside exec.
@@ -42,11 +42,11 @@ commands:
             get:
                 help: download dependencies
                 exec: |
-                    go get -d ./...
+                    go get ./...
             update:
                 help: update dependencies
                 exec: |
-                    go get -u -d ./...
+                    go get -u ./...
             tidy:
                 help: clean up go.mod
                 exec: |
