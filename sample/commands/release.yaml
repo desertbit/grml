@@ -1,11 +1,18 @@
+# An included subgrml file can declare its own 'env'. values layer on
+# top of the root env (root values stay visible) and override root keys
+# only for commands defined in this file.
+env:
+    DESTBIN: ${PROJECT}-${VERSION}-release
+    RELEASE_NOTE: ${PROJECT} ${VERSION} release
+
 help: cut a ${VERSION} release
 exec: |
-    echo "releasing ${DESTBIN}"
+    echo "${RELEASE_NOTE}"
 commands:
     tag:
         help: tag the git release
         exec: |
-            echo "git tag -a v${VERSION}"
+            echo "git tag -a v${VERSION} (${RELEASE_NOTE})"
     publish:
         help: publish ${DESTBIN} artifacts
         deps:

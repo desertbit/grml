@@ -10,10 +10,8 @@ A worked example lives in [sample/](sample/) — `cd sample && grml`.
 
 ### From source
     go install github.com/desertbit/grml@latest
-
-### Prebuilt binaries
-https://github.com/desertbit/grml/releases
-
+    
+    
 ## Usage
 
 ```
@@ -59,6 +57,7 @@ Without a target, `grml` drops into an interactive shell with tab completion. Bu
 | `help`     | help text (supports `${VAR}` interpolation from env)                       |
 | `alias`    | list of alternative names                                                  |
 | `args`     | positional arguments, exposed as env vars of the same name                 |
+| `env`      | env vars for an included subgrml file, scoped to the commands in that file (see [Per-include env](#per-include-env)) |
 | `deps`     | other commands to run first; dotted path, leading `.` resolves relative to the current command |
 | `exec`     | shell body to run                                                          |
 | `commands` | nested sub-commands                                                        |
@@ -79,6 +78,24 @@ Each option is also exported: bools as `true`/`false`, choices as the active val
 ### Variable interpolation
 
 `${VAR}` is expanded by `grml` inside `env` values, `import` paths, and `help` strings. Inside `exec` bodies, expansion is performed by the shell at runtime — env vars, options, args, and any other shell-visible variables are all available there.
+
+### Per-include env
+
+An `include`d subgrml file can declare its own `env:` block at the top. Those values layer on top of the root env (root values stay visible) and apply only to commands defined inside that file. Same-named root keys are overridden within the included file; commands outside it are unaffected.
+
+```yaml
+# commands/release.yaml — included from the root manifest as the 'release' command
+env:
+    DESTBIN:      ${PROJECT}-${VERSION}-release   # overrides root DESTBIN, only inside this file
+    RELEASE_NOTE: ${PROJECT} ${VERSION} release   # only visible to commands in this file
+
+help: cut a ${VERSION} release
+commands:
+    publish:
+        help: publish ${DESTBIN} artifacts        # uses the per-include DESTBIN
+        exec: |
+            echo "publishing ${BINDIR}/${DESTBIN}"
+```
 
 ### Shell builtins
 

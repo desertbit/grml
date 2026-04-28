@@ -221,7 +221,7 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 		gc := &grumble.Command{
 			Name:    c.Name(),
 			Aliases: c.Alias(),
-			Help:    a.evalVar(c.Help()), // Help messages may contain variables.
+			Help:    a.evalVar(a.cmdEnv(c), c.Help()), // Help messages may contain scoped variables.
 			Args: func(ga *grumble.Args) {
 				for _, arg := range localCmd.Args() {
 					ga.String(arg, "_")
@@ -249,19 +249,30 @@ func (a *app) registerCommands(parentAddCmd func(cmd *grumble.Command), cs cmd.C
 	}
 }
 
-// Hint: options are not included.
-func (a *app) evalVar(str string) string {
-	for key, value := range a.env {
+// evalVar interpolates ${VAR} references in str using the provided env map.
+// Options are not included; pass them via the env at the call site if needed.
+func (a *app) evalVar(env map[string]string, str string) string {
+	for key, value := range env {
 		key = fmt.Sprintf("${%s}", key)
 		str = strings.Replace(str, key, value, -1)
 	}
 	return str
 }
 
-// execEnv returns the execute process environment variables.
-func (a *app) execEnv() (env []string) {
-	// Environment variables.
-	for k, v := range a.env {
+// cmdEnv layers a command's scope chain on top of the root env.
+func (a *app) cmdEnv(c *cmd.Command) map[string]string {
+	env := a.env
+	for _, scope := range c.Envs() {
+		env = manifest.EvalEnvSlice(scope, env)
+	}
+	return env
+}
+
+// execEnv returns the execute process environment variables for c,
+// with c's scope chain layered on top of the root env.
+func (a *app) execEnv(c *cmd.Command) (env []string) {
+	// Environment variables (root + scoped).
+	for k, v := range a.cmdEnv(c) {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 

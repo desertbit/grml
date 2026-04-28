@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/desertbit/grml/internal/manifest"
+	"gopkg.in/yaml.v2"
 )
 
 type Commands []*Command
@@ -31,6 +32,7 @@ type Command struct {
 	name string
 	path string
 	mc   *manifest.Command
+	envs []yaml.MapSlice // ordered scope chain from outermost ancestor to self
 	cmds Commands
 	deps Commands
 }
@@ -77,22 +79,38 @@ func (c *Command) Deps() Commands {
 	return c.deps
 }
 
+// Envs returns the ordered scope chain that applies to this command,
+// from the outermost ancestor scope down to the command's own scope.
+// Empty if no ancestor or this command declared an 'env:' section.
+func (c *Command) Envs() []yaml.MapSlice {
+	return c.envs
+}
+
 func ParseManifest(m *manifest.Manifest) (cmds Commands, err error) {
 	cmds = make(Commands, 0, m.Commands.Count())
 
 	// Add the commands from the manifest.
-	addCommands("", &cmds, m.Commands)
+	addCommands("", nil, &cmds, m.Commands)
 
 	// Link the dependencies now.
 	err = linkDeps(cmds, cmds)
 	return
 }
 
-func addCommands(parentPath string, cmds *Commands, mcs manifest.Commands) {
+func addCommands(parentPath string, parentEnvs []yaml.MapSlice, cmds *Commands, mcs manifest.Commands) {
 	for name, mc := range mcs {
+		// Extend the parent's scope chain when this command declares its own env.
+		envs := parentEnvs
+		if len(mc.Env) > 0 {
+			envs = make([]yaml.MapSlice, 0, len(parentEnvs)+1)
+			envs = append(envs, parentEnvs...)
+			envs = append(envs, mc.Env)
+		}
+
 		c := &Command{
 			name: name,
 			mc:   mc,
+			envs: envs,
 			cmds: make(Commands, 0, mc.Commands.Count()),
 		}
 		*cmds = append(*cmds, c)
@@ -104,7 +122,7 @@ func addCommands(parentPath string, cmds *Commands, mcs manifest.Commands) {
 		}
 
 		// Add sub commands.
-		addCommands(c.path, &c.cmds, mc.Commands)
+		addCommands(c.path, envs, &c.cmds, mc.Commands)
 	}
 }
 

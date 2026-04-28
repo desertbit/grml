@@ -48,10 +48,16 @@ When a command runs:
 
 ### Variable interpolation — two distinct passes
 
-- **`Manifest.EvalEnv`** interpolates `${VAR}` inside the `env:` section and `import:` paths only. Order matters: `env` is a `yaml.MapSlice` to preserve declaration order so later vars can reference earlier ones.
-- **`app.evalVar`** interpolates `${VAR}` in help strings and import paths at command-registration time. **Options are not available here** — only `env` values. If you see a help string referencing an option name, it will not expand.
+- **`manifest.EvalEnvSlice`** interpolates `${VAR}` for a single env scope: each entry expands against earlier entries in the same scope, then against the parent env. `Manifest.EvalEnv` delegates to it for the root scope. `env:` is a `yaml.MapSlice` to preserve declaration order.
+- **`app.evalVar(env, str)`** interpolates `${VAR}` in help strings and import paths. Takes the env map explicitly: callers pass `a.env` for root-only contexts (imports) and `a.cmdEnv(c)` for per-command contexts (help strings). **Options are not available here** — only env values. If you see a help string referencing an option name, it will not expand.
 
 The `exec` body itself is *not* pre-interpolated by Go — variables are expanded by the shell at runtime via the `env` passed to `exec.Command`.
+
+### Per-include env
+
+An `include`d subgrml file can declare an `env:` block at its top. Those values are scoped to the commands defined inside that file, layered over root env, and not visible to commands outside the file.
+
+Implementation note: the `Env` field lives on `manifest.Command`, so technically *any* command (not just the include point) can carry `env:`, and scopes nest. The user-facing framing is per-include because that's the intended use case. The scope chain is built statically during cmd flattening (`cmd.addCommands` carries `parentEnvs []yaml.MapSlice`) and stored on each `cmd.Command` as `envs` — outermost first, command's own scope last. `app.cmdEnv(c)` layers this chain on top of `a.env` at use time via `manifest.EvalEnvSlice`. Scoping is by command location, not by call chain: when a dep crosses scope boundaries, each command runs with *its own* layered env. The root manifest's `env:` is merged into `a.env` directly since it applies universally.
 
 ### Built-in commands added at load
 

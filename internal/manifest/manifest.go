@@ -46,13 +46,14 @@ type Manifest struct {
 type Commands map[string]*Command
 
 type Command struct {
-	Alias    []string `yaml:"alias"`
-	Help     string   `yaml:"help"`
-	Args     []string `yaml:"args"`
-	Deps     []string `yaml:"deps"`
-	Exec     string   `yaml:"exec"`
-	Include  string   `yaml:"include"`
-	Commands Commands `yaml:"commands"`
+	Alias    []string      `yaml:"alias"`
+	Help     string        `yaml:"help"`
+	Args     []string      `yaml:"args"`
+	Env      yaml.MapSlice `yaml:"env"` // Scoped to this command and its descendants.
+	Deps     []string      `yaml:"deps"`
+	Exec     string        `yaml:"exec"`
+	Include  string        `yaml:"include"`
+	Commands Commands      `yaml:"commands"`
 }
 
 func (cs Commands) Count() (n int) {
@@ -63,10 +64,17 @@ func (cs Commands) Count() (n int) {
 	return
 }
 
-func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) {
-	// Prepare and evaluate the environment variables.
-	env = make(map[string]string)
-	for _, i := range m.Env {
+func (m *Manifest) EvalEnv(parentEnv map[string]string) map[string]string {
+	return EvalEnvSlice(m.Env, parentEnv)
+}
+
+// EvalEnvSlice evaluates a single env scope on top of parentEnv. Each entry's
+// ${VAR} references are expanded against earlier entries in the same scope
+// first, then against parentEnv. The returned map contains all parentEnv keys
+// plus the scope's overrides/additions.
+func EvalEnvSlice(scope yaml.MapSlice, parentEnv map[string]string) map[string]string {
+	env := make(map[string]string, len(parentEnv)+len(scope))
+	for _, i := range scope {
 		key := fmt.Sprintf("%v", i.Key)
 		value := fmt.Sprintf("%v", i.Value)
 
@@ -85,7 +93,7 @@ func (m *Manifest) EvalEnv(parentEnv map[string]string) (env map[string]string) 
 			env[k] = v
 		}
 	}
-	return
+	return env
 }
 
 func (m *Manifest) ParseOptions() (o *options.Options, err error) {

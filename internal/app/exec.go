@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/desertbit/grml/internal/cmd"
 )
@@ -84,7 +85,7 @@ func (a *app) execCommand(ctx *execContext, c *cmd.Command, args map[string]stri
 	for k, v := range args {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
-	env = append(env, a.execEnv()...) // Add args always first.
+	env = append(env, a.execEnv(c)...) // Add args always first.
 
 	// Go go go.
 	err = a.runShellCommand(c.ExecString(), env)
@@ -103,20 +104,23 @@ func (a *app) runShellCommand(cmdStr string, env []string) error {
 	}
 
 	// Prepend the shell attribute to exit immediately on error.
-	prefix := "set -e\n"
+	var prefix strings.Builder
+	prefix.WriteString("set -e\n")
 
 	// Inject grml's shell builtins (grml_*). Defined before 'set -x' so
 	// their definitions don't pollute verbose trace output.
-	prefix += grmlBuiltins
+	prefix.WriteString(grmlBuiltins)
 
 	// Enable verbose mode if set.
 	if a.verbose {
-		prefix += "set -x\n"
+		prefix.WriteString("set -x\n")
 	}
 
-	// Source local project scripts if defined.
+	// Source local project scripts if defined. Imports are root-level,
+	// so they only see the root env (not per-command scopes).
 	for _, s := range a.manifest.Import {
-		prefix += a.evalVar(". \"${ROOT}/"+s+"\"") + "\n"
+		prefix.WriteString(a.evalVar(a.env, ". \"${ROOT}/"+s+"\""))
+		prefix.WriteString("\n")
 	}
 
 	// For now must be sh compatible.
@@ -132,7 +136,7 @@ func (a *app) runShellCommand(cmdStr string, env []string) error {
 		return fmt.Errorf("unknown interpreter: %s", a.manifest.Interpreter)
 	}
 
-	cmd := exec.Command(shell, "-c", prefix+cmdStr)
+	cmd := exec.Command(shell, "-c", prefix.String()+cmdStr)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
