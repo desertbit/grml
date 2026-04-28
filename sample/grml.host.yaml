@@ -1,4 +1,4 @@
-version: 2
+version: 3
 project: sample-host
 
 # Host-side counterpart to grml.yaml. Run with:

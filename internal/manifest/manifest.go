@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	Version = 2
+	Version = 3
 )
 
 type Manifest struct {

@@ -42,7 +42,7 @@ Without a target, `grml` drops into an interactive shell with tab completion. Bu
 
 | Key           | Description                                                              |
 |:--------------|:-------------------------------------------------------------------------|
-| `version`     | manifest schema version, currently `2` (required)                        |
+| `version`     | manifest schema version, currently `3` (required)                        |
 | `project`     | project name, exposed as `${PROJECT}` (required)                         |
 | `env`         | ordered map of environment variables, supporting `${VAR}` interpolation  |
 | `options`     | user-tweakable options: bools (check) or lists of strings (single choice) |

@@ -24,7 +24,7 @@ go mod tidy
 
 There is no test suite in this repo — no `_test.go` files exist. Don't claim "tests pass" in summaries; there is nothing to run.
 
-The repo's own `grml.yaml` declares `version: 1`, but `manifest.Version` is `2` and `Parse` rejects mismatches. The repo file is effectively stale for self-hosting; treat `sample/grml.yaml` as the canonical example of current syntax (note: it also says `version: 1` and would need to be `2` to actually run).
+Schema version is `manifest.Version` (currently `3`); `Parse` rejects mismatches. All in-tree manifests (`grml.yaml`, `sample/grml.yaml`, `sample/grml.host.yaml`) are kept in lockstep with this constant.
 
 ## Architecture
 
