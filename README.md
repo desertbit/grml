@@ -146,17 +146,27 @@ Sourcing order for any given command: root manifest's `import:` first, then per-
 
 `grml` injects helpers under the `grml_*` namespace into every `exec` body and `import` script. They work under both `sh` and `bash`.
 
-| Helper                       | Description                                                          |
-|:-----------------------------|:---------------------------------------------------------------------|
-| `grml_option <name>`         | exit 0 if the named option/env var equals `true` (bool option check) |
-| `grml_option <name> <value>` | exit 0 if the named option/env var equals `<value>` (choice check)   |
+| Helper                                       | Description                                                                          |
+|:---------------------------------------------|:-------------------------------------------------------------------------------------|
+| `grml_option <name>`                         | exit 0 if the named option/env var equals `true` (bool option check)                 |
+| `grml_option <name> <value>`                 | exit 0 if the named option/env var equals `<value>` (choice check)                   |
+| `grml_if <name> <if-str> <else-str>`         | print `if-str` when option is `true`, else `else-str` (bool form)                    |
+| `grml_if <name> <value> <if-str> <else-str>` | print `if-str` when option equals `value`, else `else-str` (choice form)             |
 
-Example:
+Examples:
 
 ```sh
+# Branch on a bool option:
 if grml_option debug; then
     go build -gcflags="all=-N -l" -o "${BINDIR}/${DESTBIN}"
 else
     go build -o "${BINDIR}/${DESTBIN}"
 fi
+
+# Inline-if for picking between two strings (avoids a temporary if/else):
+suffix=$(grml_if debug '-debug' '')
+echo "publishing ${BINDIR}/${DESTBIN}${suffix}"
+
+# Choice-form: pick a string based on the active value of a choice option.
+gpu_flag=$(grml_if runtime cuda '--cuda' '--cpu')
 ```

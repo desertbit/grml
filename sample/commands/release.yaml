@@ -46,10 +46,11 @@ commands:
             - ~.tag
         exec: |
             release_banner
-            if grml_option dryrun; then
-                echo "(dry-run) would publish ${BINDIR}/${DESTBIN} to ${channel}"
-            else
-                echo "publishing ${BINDIR}/${DESTBIN} to ${channel}"
+            # 'grml_if' picks a string based on an option's value — handy
+            # when you want to keep the surrounding shell flat.
+            verb=$(grml_if dryrun '(dry-run) would publish' 'publishing')
+            echo "${verb} ${BINDIR}/${DESTBIN} to ${channel}"
+            if ! grml_option dryrun; then
                 # cwd is the subgrml's directory, so 'notes.txt' resolves
                 # without any path prefix.
                 echo "--- notes (from $(pwd)) ---"

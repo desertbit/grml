@@ -21,14 +21,31 @@ package app
 // grmlBuiltins is a POSIX-compatible shell snippet sourced before every
 // command's exec body. It defines helpers under the grml_* namespace.
 //
-// grml_option <name>          : exit 0 iff the named option equals "true"
-// grml_option <name> <value>  : exit 0 iff the named option equals <value>
+// grml_option <name> : exit 0 if the named option equals "true"
+// grml_option <name> <value> : exit 0 if the named option equals <value>
+// grml_if <name> <if-str> <else-str> : print if-str when the option is true, else else-str
+// grml_if <name> <value> <if-str> <else-str> : print if-str when option equals value, else else-str
 const grmlBuiltins = `
 grml_option() {
     case $# in
         1) eval "[ \"\${$1-}\" = true ]" ;;
         2) eval "[ \"\${$1-}\" = \"\$2\" ]" ;;
         *) echo "grml_option: usage: grml_option <name> [value]" >&2; return 2 ;;
+    esac
+}
+
+grml_if() {
+    case $# in
+        3)
+            if grml_option "$1"; then echo "$2"; else echo "$3"; fi
+            ;;
+        4)
+            if grml_option "$1" "$2"; then echo "$3"; else echo "$4"; fi
+            ;;
+        *)
+            echo "grml_if: usage: grml_if <name> [<value>] <if-str> <else-str>" >&2
+            return 2
+            ;;
     esac
 }
 `
