@@ -16,6 +16,8 @@ commands:
     publish:
         help: publish ${DESTBIN} artifacts
         deps:
-            - release.tag
+            # '~.tag' resolves to this include's 'tag' command — the file
+            # does not need to know how the root manifest names it.
+            - ~.tag
         exec: |
             echo "publishing ${BINDIR}/${DESTBIN}"

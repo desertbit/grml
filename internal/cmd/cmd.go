@@ -29,12 +29,13 @@ import (
 type Commands []*Command
 
 type Command struct {
-	name string
-	path string
-	mc   *manifest.Command
-	envs []yaml.MapSlice // ordered scope chain from outermost ancestor to self
-	cmds Commands
-	deps Commands
+	name   string
+	path   string
+	origin string // path of the nearest enclosing 'include' point; "" for root-level commands
+	mc     *manifest.Command
+	envs   []yaml.MapSlice // ordered scope chain from outermost ancestor to self
+	cmds   Commands
+	deps   Commands
 }
 
 // Name returns the command's name.
@@ -90,14 +91,14 @@ func ParseManifest(m *manifest.Manifest) (cmds Commands, err error) {
 	cmds = make(Commands, 0, m.Commands.Count())
 
 	// Add the commands from the manifest.
-	addCommands("", nil, &cmds, m.Commands)
+	addCommands("", "", nil, &cmds, m.Commands)
 
 	// Link the dependencies now.
 	err = linkDeps(cmds, cmds)
 	return
 }
 
-func addCommands(parentPath string, parentEnvs []yaml.MapSlice, cmds *Commands, mcs manifest.Commands) {
+func addCommands(parentPath, parentOrigin string, parentEnvs []yaml.MapSlice, cmds *Commands, mcs manifest.Commands) {
 	for name, mc := range mcs {
 		// Extend the parent's scope chain when this command declares its own env.
 		envs := parentEnvs
@@ -107,22 +108,32 @@ func addCommands(parentPath string, parentEnvs []yaml.MapSlice, cmds *Commands, 
 			envs = append(envs, mc.Env)
 		}
 
+		var path string
+		if len(parentPath) == 0 {
+			path = name
+		} else {
+			path = parentPath + "." + name
+		}
+
+		// If this command brings in an included subgrml file, it becomes
+		// the origin for its own deps and all of its descendants.
+		origin := parentOrigin
+		if mc.Include != "" {
+			origin = path
+		}
+
 		c := &Command{
-			name: name,
-			mc:   mc,
-			envs: envs,
-			cmds: make(Commands, 0, mc.Commands.Count()),
+			name:   name,
+			path:   path,
+			origin: origin,
+			mc:     mc,
+			envs:   envs,
+			cmds:   make(Commands, 0, mc.Commands.Count()),
 		}
 		*cmds = append(*cmds, c)
 
-		if len(parentPath) == 0 {
-			c.path = name
-		} else {
-			c.path = parentPath + "." + name
-		}
-
 		// Add sub commands.
-		addCommands(c.path, envs, &c.cmds, mc.Commands)
+		addCommands(path, origin, envs, &c.cmds, mc.Commands)
 	}
 }
 
@@ -135,7 +146,7 @@ func linkDeps(root, cmds Commands) (err error) {
 				return fmt.Errorf("command '%s': empty dependency value", c.path)
 			}
 
-			dep, err = getCommandByPath(root, c.path, d)
+			dep, err = getCommandByPath(root, c, d)
 			if err != nil {
 				return fmt.Errorf("command '%s': invalid dependency value: %w", c.path, err)
 			}
@@ -157,11 +168,23 @@ func linkDeps(root, cmds Commands) (err error) {
 	return
 }
 
-func getCommandByPath(root Commands, relPath, path string) (*Command, error) {
-	// If the path starts with a dot, then this is a relative path starting from this command.
-	// Prepend the relative path.
-	if strings.HasPrefix(path, ".") {
-		path = relPath + path
+func getCommandByPath(root Commands, from *Command, path string) (*Command, error) {
+	switch {
+	case strings.HasPrefix(path, "~"):
+		// '~.<name>' resolves relative to the nearest enclosing 'include'
+		// point (or root if the command is not inside an include subtree).
+		rest := path[1:]
+		if !strings.HasPrefix(rest, ".") || rest == "." {
+			return nil, fmt.Errorf("invalid path '%s': expected '~.<name>'", path)
+		}
+		if from.origin == "" {
+			path = rest[1:] // strip the leading '.' when resolving from root
+		} else {
+			path = from.origin + rest
+		}
+	case strings.HasPrefix(path, "."):
+		// Leading '.' resolves relative to the current command's path.
+		path = from.path + path
 	}
 
 	split := strings.Split(path, ".")
@@ -175,9 +198,9 @@ func getCommandByPath(root Commands, relPath, path string) (*Command, error) {
 	)
 	for _, name := range split {
 		cur = nil
-		for _, c := range parent {
-			if c.name == name {
-				cur = c
+		for _, ch := range parent {
+			if ch.name == name {
+				cur = ch
 				break
 			}
 		}

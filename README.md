@@ -58,7 +58,7 @@ Without a target, `grml` drops into an interactive shell with tab completion. Bu
 | `alias`    | list of alternative names                                                  |
 | `args`     | positional arguments, exposed as env vars of the same name                 |
 | `env`      | env vars for an included subgrml file, scoped to the commands in that file (see [Per-include env](#per-include-env)) |
-| `deps`     | other commands to run first; dotted path, leading `.` resolves relative to the current command |
+| `deps`     | other commands to run first; see [Dep paths](#dep-paths) for the syntax |
 | `exec`     | shell body to run                                                          |
 | `commands` | nested sub-commands                                                        |
 | `include`  | load the rest of this command's definition from another YAML file          |
@@ -78,6 +78,18 @@ Each option is also exported: bools as `true`/`false`, choices as the active val
 ### Variable interpolation
 
 `${VAR}` is expanded by `grml` inside `env` values, `import` paths, and `help` strings. Inside `exec` bodies, expansion is performed by the shell at runtime — env vars, options, args, and any other shell-visible variables are all available there.
+
+### Dep paths
+
+A `deps` entry is one of:
+
+| Syntax     | Resolves to                                                                                |
+|:-----------|:-------------------------------------------------------------------------------------------|
+| `foo.bar`  | absolute path from the root command tree                                                   |
+| `.bar`     | relative to the current command (i.e. its child `bar`)                                     |
+| `~.bar`    | relative to the nearest enclosing `include` point — its child `bar` (root if no include)   |
+
+`~.` lets an `include`d subgrml file reference its own siblings without knowing the name the root manifest gave it. For example, `commands/release.yaml` can say `deps: [~.tag]` whether the root mounts it as `release:`, `rel:`, or anything else.
 
 ### Per-include env
 

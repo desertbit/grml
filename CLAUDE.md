@@ -34,7 +34,7 @@ Entry point `grml.go` calls `internal/app.Run()`. From there, the code splits in
 
 2. **`internal/options`** — runtime-mutable user options. Two kinds: `Bools` (toggleable check options) and `Choices` (pick-one-of-N). `Restore()` carries values across a `reload` so options survive re-reading the manifest.
 
-3. **`internal/cmd`** — flattens the manifest's nested command tree into `cmd.Commands` with dotted paths (e.g. `build.linux-amd64`) and resolves `deps:` strings into pointers to other `*Command`s. Dotted dep paths starting with `.` are relative to the current command's path; otherwise absolute from root. **Constraint enforced here:** dependency commands cannot have `args`.
+3. **`internal/cmd`** — flattens the manifest's nested command tree into `cmd.Commands` with dotted paths (e.g. `build.linux-amd64`) and resolves `deps:` strings into pointers to other `*Command`s. Dep path syntax: `foo.bar` is absolute from root; leading `.` is relative to the command's own path (`.bar` → `selfPath.bar`); leading `~.` is relative to the command's `origin` — the path of the nearest enclosing `include` point (or root if none) — set during `addCommands` whenever `mc.Include != ""`. The `~` form requires the dot (e.g. `~.bar`); bare `~bar` errors out. **Constraint enforced here:** dependency commands cannot have `args`.
 
 4. **`internal/app`** — wires everything to `grumble`. `app.load()` (in `app.go`) is the central reload step: clears commands, parses the manifest, builds env (process env + `ROOT`/`PROJECT`/`NUMCPU` + manifest `env` with `${VAR}` interpolation via `EvalEnv`), parses options, then registers grumble commands recursively in `registerCommands`.
 
