@@ -96,7 +96,7 @@ A `deps` entry is one of:
 
 ### Per-include env
 
-An `include`d subgrml file can declare its own `env:` block at the top. Those values layer on top of the root env (root values stay visible) and apply only to commands defined inside that file. Same-named root keys are overridden within the included file; commands outside it are unaffected. `LOCAL_ROOT` is auto-defined to the included file's directory, so a subgrml can refer to its own files via `${LOCAL_ROOT}/<file>` without hard-coding the path.
+An `include`d subgrml file can declare its own `env:` block at the top. Those values layer on top of the root env (root values stay visible) and apply only to commands defined inside that file. Same-named root keys are overridden within the included file; commands outside it are unaffected. `LOCAL_ROOT` is auto-defined to the included file's directory, so a subgrml can refer to its own files via `${LOCAL_ROOT}/<file>` without hard-coding the path. Subgrml commands also run with their working directory set to `${LOCAL_ROOT}`, so `exec` bodies can reference sibling files by relative path. Root commands keep `${ROOT}` as their cwd.
 
 ```yaml
 # commands/release.yaml — included from the root manifest as the 'release' command

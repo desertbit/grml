@@ -91,8 +91,16 @@ func (a *app) execCommand(ctx *execContext, c *cmd.Command, args map[string]stri
 	imports := append([]string{}, a.manifest.Import...)
 	imports = append(imports, c.Imports()...)
 
+	// Working dir: subgrml commands run from their own subgrml's directory
+	// (resolved via the scoped LOCAL_ROOT env var); root commands run from
+	// the root directory.
+	workdir := a.rootPath
+	if lr := a.cmdEnv(c)["LOCAL_ROOT"]; lr != "" {
+		workdir = lr
+	}
+
 	// Go go go.
-	err = a.runShellCommand(c.ExecString(), env, imports)
+	err = a.runShellCommand(c.ExecString(), env, imports, workdir)
 	if err != nil {
 		return
 	}
@@ -102,7 +110,7 @@ func (a *app) execCommand(ctx *execContext, c *cmd.Command, args map[string]stri
 	return
 }
 
-func (a *app) runShellCommand(cmdStr string, env []string, imports []string) error {
+func (a *app) runShellCommand(cmdStr string, env []string, imports []string, workdir string) error {
 	if len(cmdStr) == 0 {
 		return nil
 	}
@@ -145,7 +153,7 @@ func (a *app) runShellCommand(cmdStr string, env []string, imports []string) err
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	cmd.Dir = a.rootPath
+	cmd.Dir = workdir
 	cmd.Env = env
 	return cmd.Run()
 }

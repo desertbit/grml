@@ -61,6 +61,8 @@ Implementation note: the `Env` field lives on `manifest.Command`, so technically
 
 `LOCAL_ROOT` is auto-synthesized in `parseIncludes`: after unmarshalling each include, a `{Key: "LOCAL_ROOT", Value: "${ROOT}/<include-dir>"}` entry is *prepended* to the included file's `cmd.Env`. Prepending lets other entries in the same scope reference `${LOCAL_ROOT}`; if the user explicitly redefines `LOCAL_ROOT` later in their own env block, last-write-wins gives them precedence. Root commands have no synthesized `LOCAL_ROOT` — only `ROOT` is defined in the root scope.
 
+The shell process's working dir for each command is also `LOCAL_ROOT` when set, otherwise `a.rootPath`. `app.execCommand` looks it up via `a.cmdEnv(c)["LOCAL_ROOT"]` (which transparently respects user overrides) and passes it to `runShellCommand` as the `workdir` arg.
+
 ### Per-include options
 
 `Command.Options` is a `map[string]interface{}` mirroring the root `Manifest.Options`. `Manifest.ParseOptions` returns `map[string]*options.Options` keyed by scope path (`""` for root, command path otherwise). Each scope has its own option namespace — names are unique only within a scope, so two subgrmls can both declare a `debug` option.

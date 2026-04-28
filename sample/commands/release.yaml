@@ -6,7 +6,9 @@ env:
     RELEASE_NOTE: ${PROJECT} ${VERSION} release
     # ${LOCAL_ROOT} is auto-defined for every subgrml as the absolute path
     # to this file's directory — no need to define a RELEASE_ROOT manually.
-    NOTES_FILE: ${LOCAL_ROOT}/notes.txt
+    # Subgrml commands also run with their cwd set to ${LOCAL_ROOT}, so
+    # exec bodies can reference sibling files (like 'notes.txt') by
+    # relative path without needing to spell out ${LOCAL_ROOT} every time.
 
 # Per-include options have their own UI under this command. Manage from
 # the shell with:
@@ -48,6 +50,8 @@ commands:
                 echo "(dry-run) would publish ${BINDIR}/${DESTBIN} to ${channel}"
             else
                 echo "publishing ${BINDIR}/${DESTBIN} to ${channel}"
-                echo "--- notes (${NOTES_FILE}) ---"
-                cat "${NOTES_FILE}"
+                # cwd is the subgrml's directory, so 'notes.txt' resolves
+                # without any path prefix.
+                echo "--- notes (from $(pwd)) ---"
+                cat notes.txt
             fi
