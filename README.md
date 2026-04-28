@@ -79,3 +79,22 @@ Each option is also exported: bools as `true`/`false`, choices as the active val
 ### Variable interpolation
 
 `${VAR}` is expanded by `grml` inside `env` values, `import` paths, and `help` strings. Inside `exec` bodies, expansion is performed by the shell at runtime — env vars, options, args, and any other shell-visible variables are all available there.
+
+### Shell builtins
+
+`grml` injects helpers under the `grml_*` namespace into every `exec` body and `import` script. They work under both `sh` and `bash`.
+
+| Helper                       | Description                                                          |
+|:-----------------------------|:---------------------------------------------------------------------|
+| `grml_option <name>`         | exit 0 iff the named option/env var equals `true` (bool option check) |
+| `grml_option <name> <value>` | exit 0 iff the named option/env var equals `<value>` (choice check)   |
+
+Example:
+
+```sh
+if grml_option debug; then
+    go build -gcflags="all=-N -l" -o "${BINDIR}/${DESTBIN}"
+else
+    go build -o "${BINDIR}/${DESTBIN}"
+fi
+```

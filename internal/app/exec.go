@@ -105,6 +105,10 @@ func (a *app) runShellCommand(cmdStr string, env []string) error {
 	// Prepend the shell attribute to exit immediately on error.
 	prefix := "set -e\n"
 
+	// Inject grml's shell builtins (grml_*). Defined before 'set -x' so
+	// their definitions don't pollute verbose trace output.
+	prefix += grmlBuiltins
+
 	// Enable verbose mode if set.
 	if a.verbose {
 		prefix += "set -x\n"

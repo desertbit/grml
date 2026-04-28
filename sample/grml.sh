@@ -7,7 +7,7 @@ mkdir -p "${BUILDDIR}" "${BINDIR}"
 
 go_build() {
     local opts=()
-    if [ "$debug" = true ]; then
+    if grml_option debug; then
         opts+=(-gcflags="all=-N -l")
     fi
 

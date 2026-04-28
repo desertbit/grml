@@ -43,7 +43,7 @@ Entry point `grml.go` calls `internal/app.Run()`. From there, the code splits in
 When a command runs:
 - An `execContext` tracks already-run targets so a dep shared by multiple commands runs at most once per top-level invocation.
 - Deps run depth-first before the command's own `exec` block.
-- `runShellCommand` constructs a script: `set -e` (always), `set -x` (when verbose), then `. "${ROOT}/<file>"` for each manifest `import`, then the user's `exec` body. This is piped to `sh -c` or `bash -c` based on `manifest.Interpreter`.
+- `runShellCommand` constructs a script: `set -e` (always), then the `grml_*` shell builtins from `internal/app/builtins.go`, then `set -x` (when verbose) — builtins are emitted *before* `set -x` on purpose so their definitions don't pollute the trace, then `. "${ROOT}/<file>"` for each manifest `import`, then the user's `exec` body. This is piped to `sh -c` or `bash -c` based on `manifest.Interpreter`. Builtins must stay POSIX-compatible because `sh` is the default interpreter.
 - The child process inherits `os.Environ()` plus manifest env, plus each option as `KEY=value` (bools as `true`/`false`, choices as the active string), plus per-invocation `args`. Args are placed first in the env slice so later entries can shadow them — relevant if a target arg name collides with an env var.
 
 ### Variable interpolation — two distinct passes
