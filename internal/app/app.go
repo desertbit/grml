@@ -51,6 +51,9 @@ type app struct {
 	manifest *manifest.Manifest
 	options  map[string]*options.Options // keyed by scope path; "" is root scope
 	commands cmd.Commands
+
+	optionFlags []optionFlag // option overrides from the command line
+	cmdArgs     []string     // command line args without the option flags
 }
 
 // Run the application.
@@ -65,6 +68,7 @@ func Run() {
 			HelpHeadlineUnderline: true,
 			HelpSubCommands:       true,
 
+			// Keep appFlags and appValueFlags in sync with these flags.
 			Flags: func(f *grumble.Flags) {
 				f.String("d", "directory", ".", "set the root directory path")
 				f.String("f", "file", defaultManifestFilename, "set an alternative grml file (relative to the root directory)")
@@ -74,6 +78,14 @@ func Run() {
 
 		fgColor: color.New(color.FgYellow),
 		env:     make(map[string]string),
+	}
+
+	// Options are only known once the manifest is loaded, which happens after
+	// grumble parsed the command line. Remove the option flags beforehand, so
+	// grumble does not reject them, and apply them in the init hook.
+	if len(os.Args) > 1 {
+		a.cmdArgs, a.optionFlags = extractOptionFlags(os.Args[1:])
+		os.Args = append([]string{os.Args[0]}, a.cmdArgs...)
 	}
 
 	a.SetPrintASCIILogo(func(gapp *grumble.App) {
@@ -111,7 +123,13 @@ func Run() {
 		a.manifestPath = filepath.Join(a.rootPath, flags.String("file"))
 
 		// Load the manifest.
-		return a.load()
+		err = a.load()
+		if err != nil {
+			return err
+		}
+
+		// Apply the option values passed as command line flags.
+		return a.applyOptionFlags(a.cmdArgs, a.optionFlags)
 	})
 
 	grumble.Main(a.App)
@@ -162,6 +180,10 @@ func (a *app) load() (err error) {
 	a.options, err = a.manifest.ParseOptions()
 	if err != nil {
 		return fmt.Errorf("failed to parse options: %v", err)
+	}
+	err = a.checkOptionNames()
+	if err != nil {
+		return fmt.Errorf("grml file: %v", err)
 	}
 	// Attach the root scope's options UI at the top level.
 	if _, ok := a.options[""]; ok {

@@ -14,6 +14,8 @@ env:
 #   options          -> show current values
 #   options check    -> toggle bool options
 #   options set X    -> pick a value for choice option X
+# Or set them as command line flags:
+#   grml --debug=true --runopts=mars deploy host user
 options:
     debug: false
     runopts:

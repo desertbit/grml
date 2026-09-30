@@ -22,7 +22,7 @@ go run . build                    # builds linux-amd64 and win-amd64 into ./bin
 go mod tidy
 ```
 
-There is no test suite in this repo — no `_test.go` files exist. Don't claim "tests pass" in summaries; there is nothing to run.
+Tests live in `internal/app` (`go test ./...`); they drive the code against the in-tree `sample/` project.
 
 Schema version is `manifest.Version` (currently `3`); `Parse` rejects mismatches. All in-tree manifests (`grml.yaml`, `sample/grml.yaml`, `sample/grml.host.yaml`) are kept in lockstep with this constant.
 
@@ -74,6 +74,10 @@ At exec time, `app.execEnv` calls `activeOptionScopes(c.Path())` to get the orde
 ### Per-include imports
 
 Same scoping idea for `import:`. A subgrml file can list shell scripts to source; they apply only to that file's command subtree. Paths in YAML are written relative to the included file's directory; `manifest.parseIncludes` rewrites them to root-relative via `rewriteImportPaths`, so downstream code sees a uniform `${ROOT}/<path>` resolution. The chain (`cmd.Command.imports`) is propagated like `envs` during `cmd.addCommands` — ancestors first, self last. At exec time `runShellCommand` sources `a.manifest.Import` (root-level) followed by `c.Imports()`. Last-sourced wins for function/variable definitions.
+
+### Option flags (`internal/app/optflags.go`)
+
+Options can be set on the command line as `--name=value` (bare `--name` = `true` for bools). grumble parses app flags before the manifest is loaded and would reject unknown ones, so `app.Run` strips these tokens from `os.Args` via `extractOptionFlags` *before* `grumble.Main` — a token is an option flag if it starts with `--` followed by a letter and its name is not in `appFlags` (grml's own long flags incl. grumble's `help`/`nocolor`; `load()` rejects manifests declaring an option with one of these names via `checkOptionNames`, in any scope); everything after `--` is left alone. Each flag records its position in the remaining args. After `load()` in the init hook, `applyOptionFlags` skips grml's app flags (`appValueFlags` lists the ones taking a separate value — keep it and `appFlags` in sync with `Run`'s `Flags`), resolves the command words before each flag to a path via `commandPath` (stops at the first non-command word, i.e. positional args), and sets the option in the innermost scope from `activeOptionScopes(path)` that declares it. Flag-set choices get `UserSet = true` so they survive `reload`. Only the CLI invocation is affected — inside the shell, options are still set via `options check`/`options set`.
 
 ### Built-in commands added at load
 

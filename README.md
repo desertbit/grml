@@ -26,6 +26,16 @@ grml [flags] [command...]
 
 The `-f` flag lets you keep multiple manifests side by side — e.g. `grml.yaml` for in-container work and `grml.host.yaml` for tasks that must run on the host.
 
+Options declared in the manifest can be set as flags too: `--name=value` (bools also accept a bare `--name` for `true`). A flag applies to the options visible from the commands typed before it, so options of an included subgrml go after that subgrml's command:
+
+```
+grml --debug=true --runopts=mars deploy host user
+grml --debug=true release --dryrun=true --channel=beta tag
+grml --runopts=moon                # open the shell with runopts preset
+```
+
+The value must be joined with `=`, and choice values must be one of the declared items. Option names must not match grml's own flags (`directory`, `file`, `verbose`, `nocolor`, `help`) — such a grml file is rejected when it's loaded. Arguments after `--` are never treated as option flags.
+
 Without a target, `grml` drops into an interactive shell with tab completion. Built-in commands:
 
 | Command              | Description                                          |
@@ -125,6 +135,8 @@ grml » labrat options check     # toggle labrat's bool options
 grml » labrat options set foo   # pick a value for labrat's choice option
 grml » closer options           # closer's options (independent of labrat's)
 ```
+
+On the command line, place a subgrml's option flags after its command: `grml labrat --debug=true build`.
 
 When running a command, the env vars exported are the merged options from every applicable scope: root first, then each ancestor scope down to the command's own scope. Inner scopes shadow outer scopes for same-named options, so a command inside `labrat` always sees its own `debug`, never the root one.
 
